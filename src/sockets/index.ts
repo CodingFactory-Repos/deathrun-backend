@@ -1,13 +1,11 @@
 import { Server } from 'socket.io';
-import { chatSocket } from '../controllers/chatSocket';
-import { notificationSocket } from '../controllers/notificationSocket';
+import { roomSocket } from "../controllers/roomSocket";
 
 export const initializeSockets = (io: Server) => {
   io.on('connection', (socket) => {
     console.log('a user connected');
 
-    chatSocket(socket);
-    notificationSocket(socket);
+    roomSocket(socket);
 
     socket.on('disconnect', () => {
       console.log('a user disconnected');
