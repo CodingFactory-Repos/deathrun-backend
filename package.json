@@ -11,6 +11,7 @@
     "dist": "node dist/index.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "dotenv": "^8.6.0",
     "express": "^4.21.1",
     "socket.io": "^3.1.2",
