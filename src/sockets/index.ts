@@ -1,14 +1,13 @@
 import { Server } from 'socket.io';
 import { roomSocket } from "../controllers/roomSocket";
+import {disconnectedSocket} from "../controllers/disconnectedSocket";
 
 export const initializeSockets = (io: Server) => {
   io.on('connection', (socket) => {
-    console.log('a user connected');
+    console.log('a user connected', socket.id);
 
     roomSocket(socket);
 
-    socket.on('disconnect', () => {
-      console.log('a user disconnected');
-    });
+    disconnectedSocket(socket);
   });
 };
