@@ -322,4 +322,12 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# Mongo
+mongo-data/*.log
+mongo-data/journal/
+mongo-data/mongod.lock
+mongo-data/storage.bson
+mongo-data/_tmp/
+mongo-data/diagnostic.data/
+
 # End of https://www.toptal.com/developers/gitignore/api/macos,windows,linux,node,intellij+all,visualstudiocode
