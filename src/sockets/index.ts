@@ -1,16 +1,38 @@
 import { Server } from 'socket.io';
-import { chatSocket } from '../controllers/chatSocket';
-import { notificationSocket } from '../controllers/notificationSocket';
 
 export const initializeSockets = (io: Server) => {
-  io.on('connection', (socket) => {
-    console.log('a user connected');
 
-    chatSocket(socket);
-    notificationSocket(socket);
+  const port = 11100;
+  const io2 = require('socket.io')();
 
-    socket.on('disconnect', () => {
-      console.log('a user disconnected');
+  io2.use((socket, next) => {
+    if (socket.handshake.query.token === "UNITY") {
+        next();
+    } else {
+        next(new Error("Authentication error"));
+    }
+  });
+
+  
+  io2.on('connection', socket => {
+    // Whatever you're receiving from Unity just print it
+    if (socket.handshake.query.token === "UNITY") {
+      console.log("Unity connected");
+    }
+    socket.emit('connection', {date: new Date().getTime(), data: "Hello Unity"})
+  
+    socket.on('hello', (data) => {
+      socket.emit('hello', {date: new Date().getTime(), data: data});
+    });
+  
+    socket.on('playerMovement', (data: Object) => {
+      console.log("Player Position is: " + data);
+      
+      // socket.emit('class', {date: new Date().getTime(), data: data});
     });
   });
+  
+  io2.listen(port);
+  console.log('listening on *:' + port);
+  console.log("Full URL of the io2 is " + io2.httpServer.address().address + ":" + io2.httpServer.address().port);
 };
