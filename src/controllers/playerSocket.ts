@@ -9,7 +9,9 @@ export const playerSocket = (socket: Socket) => {
 
     const [x, y] = sanitize(positionXYZ).split(',').map(parseFloat);
 
-    socket.to(user.room).broadcast.emit('players:move', { x, y });
+    // socket.to(user.room).broadcast.emit('players:move', { x, y });
+    socket.broadcast.emit('players:move', { x, y });
+
   });
 };
 
