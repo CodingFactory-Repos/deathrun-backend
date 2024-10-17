@@ -18,6 +18,8 @@ function createRoom(socket: Socket) {
         creator: socket.id,
         players: [socket.id],
         gods: []
+    }).then(() => {
+        return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
         socket.join(roomCode);
         socket.emit('rooms:create', result);
@@ -50,7 +52,7 @@ function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god"
 }
 
 function lisenForRoomEvents(socket: Socket) {
-    socket.on('rooms:events', (msg) => {
+    socket.on('rooms:events', (msg: {code: string, creator: string, players: string[], gods: string[]}) => {
         console.log('rooms:events', msg);
     });
 }
