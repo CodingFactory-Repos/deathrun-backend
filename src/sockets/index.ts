@@ -1,7 +1,7 @@
 import { roomSocket } from "../controllers/roomSocket";
-import {disconnectedSocket} from "../controllers/disconnectedSocket";
-import {Server} from "socket.io";
 import {playerSocket} from "../controllers/playerSocket";
+import { Server } from 'socket.io';
+import { disconnectedSocket } from "../controllers/disconnectedSocket";
 
 export const initializeSockets = (io: Server) => {
   io.on('connection', (socket) => {
@@ -11,5 +11,5 @@ export const initializeSockets = (io: Server) => {
     playerSocket(socket);
 
     disconnectedSocket(socket);
-    });
+  });
 };
