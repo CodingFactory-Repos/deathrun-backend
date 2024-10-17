@@ -29,6 +29,7 @@ function createRoom(socket: Socket) {
 }
 
 function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god" }) {
+    console.log('rooms:join', socket.id, data);
     // Check if room exists and if player not already in room
     clientDB.collection('rooms').findOne({code: data.code, players: {$ne: socket.id}}).then((room) => {
         if (room) {
@@ -47,6 +48,8 @@ function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god"
 
                 lisenForRoomEvents(socket);
             });
+        } else {
+            socket.emit('rooms:join', {error: 'Room not found or you are already in the room'});
         }
     });
 }
