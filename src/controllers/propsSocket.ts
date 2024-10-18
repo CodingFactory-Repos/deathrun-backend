@@ -15,8 +15,6 @@ function sendProps(socket: Socket, props: any) {
         }
     }
 
-    console.log("Emitted props:received", props);
     socket.broadcast.emit('props:received', props);
-    console.log("Emitted props:received", props);
 }
 
