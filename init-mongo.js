@@ -7,5 +7,6 @@ db.rooms.insertOne({
     code: "test",
     creator: "testPlayer",
     players: ["testPlayer"],
-    gods: []
+    gods: [],
+    props: [{x: 4, y: 5}],
 });
