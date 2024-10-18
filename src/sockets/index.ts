@@ -3,6 +3,7 @@ import {playerSocket} from "../controllers/playerSocket";
 import { trapSocket } from "../controllers/trapSocket";
 import { Server } from 'socket.io';
 import { disconnectedSocket } from "../controllers/disconnectedSocket";
+import { propsSocket } from "../controllers/propsSocket";
 
 export const initializeSockets = (io: Server) => {
   io.on('connection', (socket) => {
@@ -11,6 +12,7 @@ export const initializeSockets = (io: Server) => {
     roomSocket(socket);
     playerSocket(socket);
     trapSocket(socket);
+    propsSocket(socket);
 
     disconnectedSocket(socket);
   });
