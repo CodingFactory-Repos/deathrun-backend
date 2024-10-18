@@ -13,7 +13,7 @@ export const initializeSockets = (io: Server) => {
     playerSocket(socket);
     trapSocket(socket);
     propsSocket(socket);
-
+    
     disconnectedSocket(socket);
   });
 };
