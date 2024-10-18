@@ -73,8 +73,9 @@ export async function disconnectRoom(socket: Socket) {
         await clientDB.collection('rooms').updateMany(
             {_id: godRoom._id},
             {$pull: {gods: socket.id}}
-        ).then(() => {
+        ).then(async () => {
             const updatedRoom = await clientDB.collection('rooms').findOne({_id: godRoom._id});
             socket.to(godRoom.code).emit('rooms:events', updatedRoom);
-        }
-};
+        });
+    }
+}
