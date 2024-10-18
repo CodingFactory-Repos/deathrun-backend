@@ -23,39 +23,60 @@ function createRoom(socket: Socket) {
     }).then((result) => {
         socket.join(roomCode);
         socket.emit('rooms:create', result);
-
-        lisenForRoomEvents(socket);
     });
 }
 
 function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god" }) {
-    console.log('rooms:join', socket.id, data);
-    // Check if room exists and if player not already in room
-    clientDB.collection('rooms').findOne({code: data.code, players: {$ne: socket.id}}).then((room) => {
+    clientDB.collection('rooms').findOne({code: data.code, players: {$ne: socket.id}}).then(async (room) => {
         if (room) {
-            const pushPlayer = data.joinAs === 'player' ? {$push: {players: socket.id}} : {$push: {gods: socket.id}};
+            // Check if the player is already in the room
+            if (!room.players.includes(socket.id) || !room.gods.includes(socket.id)) {
+                const pushPlayer = data.joinAs === 'player' ? {$push: {players: socket.id}} : {$push: {gods: socket.id}};
 
-            clientDB.collection('rooms').updateOne(
-                {code: data.code},
-                pushPlayer as any
-            ).then(() => {
-                return clientDB.collection('rooms').findOne({code: data.code});
-            }).then((updatedRoom) => {
+                await clientDB.collection('rooms').updateOne(
+                    {code: data.code},
+                    pushPlayer as any
+                )
+            }
+
+            await clientDB.collection('rooms').findOne({code: data.code}).then((updatedRoom) => {
                 socket.join(data.code);
                 socket.emit('rooms:join', updatedRoom);
 
                 socket.to(data.code).emit('rooms:events', updatedRoom);
 
-                lisenForRoomEvents(socket);
+                console.log(socket.id + ' joined room ' + data.code);
             });
         } else {
-            socket.emit('rooms:join', {error: 'Room not found or you are already in the room'});
+            socket.emit('rooms:join', {error: 'Room not found'});
         }
     });
 }
 
-function lisenForRoomEvents(socket: Socket) {
-    socket.on('rooms:events', (msg: {code: string, creator: string, players: string[], gods: string[]}) => {
-        console.log('rooms:events', msg);
-    });
-}
+export async function disconnectRoom(socket: Socket) {
+    await clientDB.collection('rooms').deleteMany({creator: socket.id});
+
+    const playerRoom = await clientDB.collection('rooms').findOne({players: socket.id});
+    if (playerRoom) {
+        await clientDB.collection('rooms').updateMany(
+            {_id: playerRoom._id},
+            {$pull: {players: socket.id}}
+        ).then(() => {
+            return clientDB.collection('rooms').findOne({_id: playerRoom._id});
+        }).then((updatedRoom) => {
+            socket.to(playerRoom.code).emit('rooms:events', updatedRoom);
+        });
+    }
+
+    const godRoom = await clientDB.collection('rooms').findOne({gods: socket.id});
+    if (godRoom) {
+        await clientDB.collection('rooms').updateMany(
+            {_id: godRoom._id},
+            {$pull: {gods: socket.id}}
+        ).then(() => {
+            return clientDB.collection('rooms').findOne({_id: godRoom._id});
+        }).then((updatedRoom) => {
+            socket.to(godRoom.code).emit('rooms:events', updatedRoom);
+        });
+    }
+};
