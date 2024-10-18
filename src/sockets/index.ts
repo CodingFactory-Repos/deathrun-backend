@@ -1,12 +1,16 @@
-import { Server } from 'socket.io';
 import { roomSocket } from "../controllers/roomSocket";
-import {disconnectedSocket} from "../controllers/disconnectedSocket";
+import {playerSocket} from "../controllers/playerSocket";
+import { trapSocket } from "../controllers/trapSocket";
+import { Server } from 'socket.io';
+import { disconnectedSocket } from "../controllers/disconnectedSocket";
 
 export const initializeSockets = (io: Server) => {
   io.on('connection', (socket) => {
     console.log('a user connected', socket.id);
 
     roomSocket(socket);
+    playerSocket(socket);
+    trapSocket(socket);
 
     disconnectedSocket(socket);
   });
