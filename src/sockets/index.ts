@@ -4,6 +4,7 @@ import { trapSocket } from "../controllers/trapSocket";
 import { Server } from 'socket.io';
 import { disconnectedSocket } from "../controllers/disconnectedSocket";
 import {rockPaperScissorsSocket} from "../controllers/RockPaperScissorsSocket";
+import {chatSocket} from "../controllers/chatSocket";
 
 export const initializeSockets = (io: Server) => {
   io.on('connection', (socket) => {
@@ -13,6 +14,7 @@ export const initializeSockets = (io: Server) => {
     playerSocket(socket);
     trapSocket(socket);
     rockPaperScissorsSocket(socket);
+    chatSocket(socket);
 
     disconnectedSocket(socket);
   });
