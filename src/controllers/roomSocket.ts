@@ -86,12 +86,13 @@ export async function disconnectRoom(socket: Socket) {
         await clientDB.collection('rooms').updateMany(
             {_id: godRoom._id},
             {$pull: {gods: socket.id}}
-        ).then(async () => {
-            const updatedRoom = await clientDB.collection('rooms').findOne({_id: godRoom._id});
+        ).then(() => {
+            return clientDB.collection('rooms').findOne({_id: godRoom._id});
+        }).then((updatedRoom) => {
             socket.to(godRoom.code).emit('rooms:events', updatedRoom);
         });
     }
-}
+};
 
 function convertToCoordinates(coordinates: [string]): PropsCoordinates[] {
     return coordinates.map((prop: string) => {
