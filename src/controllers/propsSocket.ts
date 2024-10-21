@@ -18,13 +18,9 @@ async function sendProps(socket: Socket, props: [string]) {
         return {x, y};
     });
 
-    console.log("EHZAHDHZ", socket.id);
     const room = await clientDB.collection('rooms').findOne({creator: socket.id});
 
-    console.log("ROOM", room);
-
     if (room) {
-        // Add props to room
         await clientDB.collection('rooms').updateOne(
             {creator: socket.id},
             {$set: {props: coordinates}}
