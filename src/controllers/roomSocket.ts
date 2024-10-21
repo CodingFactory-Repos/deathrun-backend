@@ -1,23 +1,36 @@
 import {Socket} from 'socket.io';
 import {clientDB} from "../utils/databaseHelper";
 
+interface PropsCoordinates {
+    x: number,
+    y: number
+}
+
 export const roomSocket = (socket: Socket) => {
-    socket.on('rooms:create', (msg) => {
-        createRoom(socket);
+    socket.on('rooms:create', (coordinates: [string]) => {
+        createRoom(socket, coordinates);
     });
 
-    socket.on('rooms:join', (msg) => {
+    socket.on('rooms:join', (msg: { code: string, joinAs: "player" | "god" }) => {
         joinRoom(socket, msg);
     });
 };
 
-function createRoom(socket: Socket) {
+function createRoom(socket: Socket, data: [string]) {
+    if (data.length < 1) {
+        socket.emit('rooms:create', {error: 'Invalid coordinates'});
+        return;
+    }
+
+    const propsCoordinates: PropsCoordinates[] = convertToCoordinates(data);
+
     const roomCode = Math.random().toString(36).substring(7);
     clientDB.collection('rooms').insertOne({
         code: roomCode,
         creator: socket.id,
         players: [socket.id],
-        gods: []
+        gods: [],
+        props: propsCoordinates
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
@@ -73,8 +86,16 @@ export async function disconnectRoom(socket: Socket) {
         await clientDB.collection('rooms').updateMany(
             {_id: godRoom._id},
             {$pull: {gods: socket.id}}
-        ).then(() => {
+        ).then(async () => {
             const updatedRoom = await clientDB.collection('rooms').findOne({_id: godRoom._id});
             socket.to(godRoom.code).emit('rooms:events', updatedRoom);
-        }
-};
+        });
+    }
+}
+
+function convertToCoordinates(coordinates: [string]): PropsCoordinates[] {
+    return coordinates.map((prop: string) => {
+        const [x, y] = prop.split(',').map(Number);
+        return {x, y};
+    });
+}
