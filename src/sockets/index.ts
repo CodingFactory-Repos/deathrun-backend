@@ -1,6 +1,7 @@
 import { roomSocket } from "../controllers/roomSocket";
 import {playerSocket} from "../controllers/playerSocket";
 import { trapSocket } from "../controllers/trapSocket";
+import { propsSocket } from "../controllers/propsSocket";
 import { Server } from 'socket.io';
 import { disconnectedSocket } from "../controllers/disconnectedSocket";
 import {rockPaperScissorsSocket} from "../controllers/RockPaperScissorsSocket";
@@ -13,6 +14,7 @@ export const initializeSockets = (io: Server) => {
     playerSocket(socket);
     trapSocket(socket);
     rockPaperScissorsSocket(socket);
+    propsSocket(socket);
 
     disconnectedSocket(socket);
   });

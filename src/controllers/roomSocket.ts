@@ -7,8 +7,8 @@ interface PropsCoordinates {
 }
 
 export const roomSocket = (socket: Socket) => {
-    socket.on('rooms:create', (coordinates: [string]) => {
-        createRoom(socket, coordinates);
+    socket.on('rooms:create', () => {
+        createRoom(socket);
     });
 
     socket.on('rooms:join', (msg: { code: string, joinAs: "player" | "god" }) => {
@@ -16,21 +16,13 @@ export const roomSocket = (socket: Socket) => {
     });
 };
 
-function createRoom(socket: Socket, data: [string]) {
-    if (data.length < 1) {
-        socket.emit('rooms:create', {error: 'Invalid coordinates'});
-        return;
-    }
-
-    const propsCoordinates: PropsCoordinates[] = convertToCoordinates(data);
-
+function createRoom(socket: Socket) {
     const roomCode = Math.random().toString(36).substring(7);
     clientDB.collection('rooms').insertOne({
         code: roomCode,
         creator: socket.id,
         players: [socket.id],
         gods: [],
-        props: propsCoordinates
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
@@ -52,13 +44,19 @@ function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god"
                 )
             }
 
-            await clientDB.collection('rooms').findOne({code: data.code}).then((updatedRoom) => {
+            await clientDB.collection('rooms').findOne({code: data.code}).then(async (updatedRoom) => {
                 socket.join(data.code);
                 socket.emit('rooms:join', updatedRoom);
 
                 socket.to(data.code).emit('rooms:events', updatedRoom);
 
                 console.log(socket.id + ' joined room ' + data.code);
+
+                const room = await clientDB.collection('rooms').findOne({code: data.code});
+
+                if (room && room.creator) {
+                    socket.to(room.creator).emit('trapper:join', {player: socket.id});
+                }
             });
         } else {
             socket.emit('rooms:join', {error: 'Room not found'});
