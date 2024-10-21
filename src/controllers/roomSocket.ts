@@ -74,7 +74,9 @@ export async function disconnectRoom(socket: Socket) {
             {_id: godRoom._id},
             {$pull: {gods: socket.id}}
         ).then(() => {
-            const updatedRoom = await clientDB.collection('rooms').findOne({_id: godRoom._id});
+            return clientDB.collection('rooms').findOne({_id: godRoom._id});
+        }).then((updatedRoom) => {
             socket.to(godRoom.code).emit('rooms:events', updatedRoom);
-        }
+        });
+    }
 };
