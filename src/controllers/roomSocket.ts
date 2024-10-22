@@ -79,36 +79,36 @@ function joinRoom(socket: Socket, data: joinRoomData) {
 }
 
 export async function disconnectRoom(socket: Socket) {
-    await clientDB.collection('rooms').deleteMany({creator: socket.id});
+    try {
+        // Supprimer les salles créées par le joueur qui se déconnecte
+        await clientDB.collection('rooms').deleteMany({creator: socket.id});
 
-    const playerRoom = await clientDB.collection('rooms').findOne({players: socket.id});
-    if (playerRoom) {
-        await clientDB.collection('rooms').updateMany(
-            {_id: playerRoom._id},
-            {$pull: {players: socket.id}}
-        ).then(() => {
-            return clientDB.collection('rooms').findOne({_id: playerRoom._id});
-        }).then((updatedRoom) => {
-            socket.to(playerRoom.code).emit('rooms:events', updatedRoom);
-        });
+        // Supprimer le joueur des salles où il est inscrit
+        const playerRoom = await clientDB.collection('rooms').findOne({'players.id': socket.id});
+        if (playerRoom) {
+            await clientDB.collection('rooms').updateMany(
+                {_id: playerRoom._id},
+                {$pull: {players: {id: socket.id}}} // On supprime l'objet entier où l'id correspond
+            ).then(() => {
+                return clientDB.collection('rooms').findOne({_id: playerRoom._id});
+            }).then((updatedRoom) => {
+                socket.to(playerRoom.code).emit('rooms:events', updatedRoom);
+            });
+        }
+
+        // Supprimer le dieu des salles où il est inscrit
+        const godRoom = await clientDB.collection('rooms').findOne({'gods.id': socket.id});
+        if (godRoom) {
+            await clientDB.collection('rooms').updateMany(
+                {_id: godRoom._id},
+                {$pull: {gods: {id: socket.id}}} // On supprime l'objet entier où l'id correspond
+            ).then(() => {
+                return clientDB.collection('rooms').findOne({_id: godRoom._id});
+            }).then((updatedRoom) => {
+                socket.to(godRoom.code).emit('rooms:events', updatedRoom);
+            });
+        }
+    } catch (error) {
+        console.error('Error disconnecting room:', error);
     }
-
-    const godRoom = await clientDB.collection('rooms').findOne({gods: socket.id});
-    if (godRoom) {
-        await clientDB.collection('rooms').updateMany(
-            {_id: godRoom._id},
-            {$pull: {gods: socket.id}}
-        ).then(() => {
-            return clientDB.collection('rooms').findOne({_id: godRoom._id});
-        }).then((updatedRoom) => {
-            socket.to(godRoom.code).emit('rooms:events', updatedRoom);
-        });
-    }
-}
-
-function convertToCoordinates(coordinates: [string]): PropsCoordinates[] {
-    return coordinates.map((prop: string) => {
-        const [x, y] = prop.split(',').map(Number);
-        return {x, y};
-    });
 }
