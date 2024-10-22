@@ -28,8 +28,8 @@ function createRoom(socket: Socket, data: [string]) {
     clientDB.collection('rooms').insertOne({
         code: roomCode,
         creator: socket.id,
-        players: [socket.id],
-        gods: [],
+        players: [{id: socket.id}], // Ajout de l'id du joueur
+        gods: [], // Les dieux seront ajoutés plus tard
         props: propsCoordinates
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
@@ -39,25 +39,33 @@ function createRoom(socket: Socket, data: [string]) {
     });
 }
 
-function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god" }) {
-    clientDB.collection('rooms').findOne({code: data.code, players: {$ne: socket.id}}).then(async (room) => {
+function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god", godId?: number }) {
+    clientDB.collection('rooms').findOne({code: data.code, players: {$ne: {id: socket.id}}}).then(async (room) => {
         if (room) {
-            // Check if the player is already in the room
-            if (!room.players.includes(socket.id) || !room.gods.includes(socket.id)) {
-                const pushPlayer = data.joinAs === 'player' ? {$push: {players: socket.id}} : {$push: {gods: socket.id}};
+            // Check if the player or god is already in the room
+            const isPlayer = room.players.some((player: any) => player.id === socket.id);
+            const isGod = room.gods.some((god: any) => god.id === socket.id);
+
+            if (!isPlayer && !isGod) {
+                if (data.joinAs === 'god' && !data.godId) {
+                    socket.emit('rooms:join', {error: 'godId is required'});
+                    return;
+                }
+
+                const roleData = data.joinAs === 'player'
+                    ? {$push: {players: {id: socket.id}}}
+                    : {$push: {gods: {id: socket.id, god: data.godId}}}; // Ajout du rôle god avec l'attribut
 
                 await clientDB.collection('rooms').updateOne(
                     {code: data.code},
-                    pushPlayer as any
-                )
+                    roleData as any
+                );
             }
 
             await clientDB.collection('rooms').findOne({code: data.code}).then((updatedRoom) => {
                 socket.join(data.code);
                 socket.emit('rooms:join', updatedRoom);
-
                 socket.to(data.code).emit('rooms:events', updatedRoom);
-
                 console.log(socket.id + ' joined room ' + data.code);
             });
         } else {
