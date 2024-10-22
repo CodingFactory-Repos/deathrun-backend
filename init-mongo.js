@@ -6,7 +6,8 @@ db.createCollection('rooms'); // Création de la collection "rooms"
 db.rooms.insertOne({
     code: "test",
     creator: "testPlayer",
-    players: ["testPlayer"],
+    players: [{id: "testPlayer"}],
     gods: [],
     props: [{x: 4, y: 5}],
+    started: false,
 });
