@@ -1,5 +1,6 @@
 import {Socket} from 'socket.io';
 import {clientDB} from "../utils/databaseHelper";
+import {startGame} from "./gameSocket";
 
 interface PropsCoordinates {
     x: number,
@@ -20,6 +21,10 @@ export const roomSocket = (socket: Socket) => {
     socket.on('rooms:join', (msg: { code: string, joinAs: "player" | "god" }) => {
         joinRoom(socket, msg);
     });
+
+    socket.on('rooms:start', () => {
+        startGame(socket);
+    });
 };
 
 function createRoom(socket: Socket) {
@@ -29,6 +34,7 @@ function createRoom(socket: Socket) {
         creator: socket.id,
         players: [{id: socket.id}],
         gods: [],
+        started: false,
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
