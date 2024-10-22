@@ -68,7 +68,7 @@ async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
     const { props, traps } = room;
     const { x, y } = trap;
 
-    if (isPositionOccupied(props, x, y, 'prop') || isPositionOccupied(traps, x, y, 'trap')) {
+    if (isPositionOccupied(props, x, y, 'prop', socket) || isPositionOccupied(traps, x, y, 'trap', socket)) {
         return false;
     }
 
@@ -96,9 +96,9 @@ async function getRoom(socket: Socket) {
  * @param type - Le type d'objet (prop ou trap)
  * @returns true si la position est occupée, false sinon
  */
-function isPositionOccupied(items: any[], x: number, y: number, type: string): boolean {
+function isPositionOccupied(items: any[], x: number, y: number, type: string, socket: Socket): boolean {
     if (items && items.some(item => item.x === x && item.y === y)) {
-        handleError(null, `Impossible de placer un piège sur un ${type}`);
+        handleError(socket, `Impossible de placer un piège sur un ${type}`);
         return true;
     }
     return false;
