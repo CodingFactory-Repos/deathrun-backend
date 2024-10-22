@@ -1,5 +1,4 @@
 import { Socket } from 'socket.io';
-import { clientDB } from "../utils/databaseHelper";
 import {disconnectRoom} from "./roomSocket";
 
 export const disconnectedSocket = (socket: Socket) => {
