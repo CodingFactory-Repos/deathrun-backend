@@ -97,7 +97,7 @@ async function getRoom(socket: Socket) {
  * @returns true si la position est occupée, false sinon
  */
 function isPositionOccupied(items: any[], x: number, y: number, type: string): boolean {
-    if (items.some(item => item.x === x && item.y === y)) {
+    if (items && items.some(item => item.x === x && item.y === y)) {
         handleError(null, `Impossible de placer un piège sur un ${type}`);
         return true;
     }
@@ -116,6 +116,12 @@ async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
             { gods: socket.id },
             { $push: { traps: { x: trap.x, y: trap.y, trapType: trap.trapType } } }
         );
+
+        const room = await getRoom(socket);
+
+        if (room && room.traps) {
+            socket.emit('traps:list', room.traps);
+        }
         return true;
     } catch (error) {
         handleError(socket, 'Erreur lors de l\'ajout du piège à la salle', error);

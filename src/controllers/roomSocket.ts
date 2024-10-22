@@ -50,8 +50,6 @@ function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god"
 
                 socket.to(data.code).emit('rooms:events', updatedRoom);
 
-                console.log(socket.id + ' joined room ' + data.code);
-
                 const room = await clientDB.collection('rooms').findOne({code: data.code});
 
                 if (room && room.creator) {
