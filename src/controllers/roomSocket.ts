@@ -45,15 +45,13 @@ function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god"
             }
 
             await clientDB.collection('rooms').findOne({code: data.code}).then(async (updatedRoom) => {
-                socket.join(data.code);
-                socket.emit('rooms:join', updatedRoom);
+                if (updatedRoom && updatedRoom.creator) {
+                    socket.join(data.code); // Join the room
+                    socket.emit('rooms:join', updatedRoom); // Send the room data to the player
 
-                socket.to(data.code).emit('rooms:events', updatedRoom);
+                    socket.to(data.code).emit('rooms:events', updatedRoom); // Send the room data to the other players
 
-                const room = await clientDB.collection('rooms').findOne({code: data.code});
-
-                if (room && room.creator) {
-                    socket.to(room.creator).emit('trapper:join', {player: socket.id});
+                    socket.to(updatedRoom.creator).emit('trapper:join', {player: socket.id}); // Send the player id to the creator
                 }
             });
         } else {
@@ -88,7 +86,7 @@ export async function disconnectRoom(socket: Socket) {
             socket.to(godRoom.code).emit('rooms:events', updatedRoom);
         });
     }
-};
+}
 
 function convertToCoordinates(coordinates: [string]): PropsCoordinates[] {
     return coordinates.map((prop: string) => {
