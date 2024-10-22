@@ -52,6 +52,12 @@ function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god"
                     return;
                 }
 
+                // Check if the godId is already in the room
+                if (data.joinAs === 'god' && room.gods.some((god: any) => god.god === data.godId)) {
+                    socket.emit('rooms:join', {error: 'God already in the room'});
+                    return;
+                }
+
                 const roleData = data.joinAs === 'player'
                     ? {$push: {players: {id: socket.id}}}
                     : {$push: {gods: {id: socket.id, god: data.godId}}}; // Ajout du rôle god avec l'attribut
