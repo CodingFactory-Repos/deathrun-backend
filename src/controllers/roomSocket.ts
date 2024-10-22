@@ -7,8 +7,8 @@ interface PropsCoordinates {
 }
 
 export const roomSocket = (socket: Socket) => {
-    socket.on('rooms:create', (coordinates: [string]) => {
-        createRoom(socket, coordinates);
+    socket.on('rooms:create', () => {
+        createRoom(socket);
     });
 
     socket.on('rooms:join', (msg: { code: string, joinAs: "player" | "god" }) => {
@@ -16,21 +16,13 @@ export const roomSocket = (socket: Socket) => {
     });
 };
 
-function createRoom(socket: Socket, data: [string]) {
-    if (data.length < 1) {
-        socket.emit('rooms:create', {error: 'Invalid coordinates'});
-        return;
-    }
-
-    const propsCoordinates: PropsCoordinates[] = convertToCoordinates(data);
-
+function createRoom(socket: Socket) {
     const roomCode = Math.random().toString(36).substring(7);
     clientDB.collection('rooms').insertOne({
         code: roomCode,
         creator: socket.id,
-        players: [{id: socket.id}], // Ajout de l'id du joueur
-        gods: [], // Les dieux seront ajoutés plus tard
-        props: propsCoordinates
+        players: [{id: socket.id}],
+        gods: [],
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
@@ -68,11 +60,16 @@ function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god"
                 );
             }
 
-            await clientDB.collection('rooms').findOne({code: data.code}).then((updatedRoom) => {
-                socket.join(data.code);
-                socket.emit('rooms:join', updatedRoom);
-                socket.to(data.code).emit('rooms:events', updatedRoom);
-                console.log(socket.id + ' joined room ' + data.code);
+            await clientDB.collection('rooms').findOne({code: data.code}).then(async (updatedRoom) => {
+                if (updatedRoom && updatedRoom.creator) {
+                    socket.join(data.code); // Join the room
+                    socket.emit('rooms:join', updatedRoom); // Send the room data to the player
+
+                    socket.to(data.code).emit('rooms:events', updatedRoom); // Send the room data to the other players
+                    console.log(socket.id + ' joined room ' + data.code);
+
+                    socket.to(updatedRoom.creator).emit('trapper:join', {player: socket.id}); // Send the player id to the creator
+                }
             });
         } else {
             socket.emit('rooms:join', {error: 'Room not found'});
@@ -106,7 +103,7 @@ export async function disconnectRoom(socket: Socket) {
             socket.to(godRoom.code).emit('rooms:events', updatedRoom);
         });
     }
-};
+}
 
 function convertToCoordinates(coordinates: [string]): PropsCoordinates[] {
     return coordinates.map((prop: string) => {
