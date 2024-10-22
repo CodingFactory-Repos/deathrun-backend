@@ -22,7 +22,8 @@ export const roomController = async (req: Request, res: Response) => {
     if (room) {
         // Get the available gods
         const gods = room.gods.map((god: any) => god.god); // [1, 2, 3, 4, 5]
-        toResponse.availableGods = gods;
+        const allGods = Array.from({length: 7}, (_, i) => i + 1);
+        toResponse.availableGods = allGods.filter(god => !gods.includes(god));
         toResponse.status = 200;
     }
 
