@@ -7,7 +7,7 @@ export const checkUserInRoom = async (socket: Socket): Promise<{ room: string, r
     return { room: playerRoom.code, role: 'player' };
   }
 
-  const godRoom = await clientDB.collection('rooms').findOne({ gods: socket.id });
+  const godRoom = await clientDB.collection('rooms').findOne({ 'gods.id': socket.id });
   if (godRoom) {
     return { room: godRoom.code, role: 'god' };
   }
