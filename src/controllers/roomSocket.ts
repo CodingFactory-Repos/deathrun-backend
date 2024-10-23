@@ -1,9 +1,9 @@
 import {Socket} from 'socket.io';
 import {clientDB} from "../utils/databaseHelper";
 import {startGame} from "./gameSocket";
-import {Webhook} from "discord-webhook-node";
+import {MessageBuilder, Webhook} from "discord-webhook-node";
 import os from "os";
-import {ngrokUrl} from "../index";
+import {tunnelURL} from "../index";
 
 interface PropsCoordinates {
     x: number,
@@ -48,7 +48,15 @@ function createRoom(socket: Socket) {
         socket.emit('rooms:create', result);
 
         const hook = new Webhook(process.env.WEBHOOK_URL || '');
-        hook.send(`Room created with code \`${roomCode}\` by \`${os.hostname().split('.')[0]}\` on \`${ngrokUrl}\` address <@&1298573711015804949>`);
+        const embed = new MessageBuilder()
+            .setTitle('Room created')
+            .setAuthor(os.hostname().split('.')[0], "https://img.icons8.com/?size=512&id=122959&format=png")
+            .addField('Code', roomCode)
+            .addField('Tunnel Address', tunnelURL.url ?? 'No tunnel address. Please restart the server.')
+            .addField('Tunnel Password', tunnelURL.password ?? 'No tunnel password. Please restart the server.')
+            .setTimestamp();
+
+        hook.send(embed);
     });
 }
 
