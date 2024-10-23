@@ -1,6 +1,9 @@
 import {Socket} from 'socket.io';
 import {clientDB} from "../utils/databaseHelper";
 import {startGame} from "./gameSocket";
+import {Webhook} from "discord-webhook-node";
+import {getLocalIP} from "../utils/ipHelper";
+import os from "os";
 
 interface PropsCoordinates {
     x: number,
@@ -41,6 +44,9 @@ function createRoom(socket: Socket) {
     }).then((result) => {
         socket.join(roomCode);
         socket.emit('rooms:create', result);
+
+        const hook = new Webhook(process.env.WEBHOOK_URL || '');
+        hook.send(`Room created with code \`${roomCode}\` by \`${os.hostname().split('.')[0]}\` on \`${getLocalIP()}:${process.env.PORT}\` address <@&1298573711015804949>`);
     });
 }
 

@@ -1,6 +1,7 @@
 import { Socket } from 'socket.io';
 import { Trap } from "../interfaces/trap";
 import { clientDB } from "../utils/databaseHelper";
+import {checkUserInRoom, isPlayer} from "../utils/roomHelper";
 
 function handleError(socket: Socket, message: string, data?: any) {
     console.error(message, data);
@@ -76,8 +77,14 @@ async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
  * @returns La salle correspondante ou null
  */
 async function getRoom(socket: Socket) {
-    const room = await clientDB.collection('rooms').findOne({ $or: [{ gods: socket.id }, { creator: socket.id }] });
-    if (!room) handleError(socket, 'Vous n\'êtes pas un dieu');
+    const user = checkUserInRoom(socket);
+    if (!user) return handleError(socket, 'Vous n\'êtes pas dans une salle');
+
+    if (!isPlayer(socket)) return handleError(socket, 'Vous n\'êtes pas un dieu');
+
+    const room = await clientDB.collection('rooms').findOne({ 'gods.id': socket.id });
+    if (!room) return handleError(socket, 'Salle non trouvée');
+
     return room;
 }
 
@@ -104,7 +111,7 @@ function isPositionOccupied(items: any[], x: number, y: number, socket: Socket):
  */
 async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
     try {
-        await clientDB.collection('rooms').updateOne({ gods: socket.id }, { $push: { traps: trap } });
+        await clientDB.collection('rooms').updateOne({ 'gods.id': socket.id }, { $push: { traps: trap } });
         const room = await getRoom(socket);
         if (room?.traps) socket.emit('traps:list', room.traps);
         return true;
