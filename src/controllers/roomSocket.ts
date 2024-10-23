@@ -2,8 +2,8 @@ import {Socket} from 'socket.io';
 import {clientDB} from "../utils/databaseHelper";
 import {startGame} from "./gameSocket";
 import {Webhook} from "discord-webhook-node";
-import {getLocalIP} from "../utils/ipHelper";
 import os from "os";
+import {ngrokUrl} from "../index";
 
 interface PropsCoordinates {
     x: number,
@@ -39,6 +39,8 @@ function createRoom(socket: Socket) {
         players: [{id: socket.id}],
         gods: [],
         started: false,
+        floor: 0,
+        bank: 0,
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
@@ -46,7 +48,7 @@ function createRoom(socket: Socket) {
         socket.emit('rooms:create', result);
 
         const hook = new Webhook(process.env.WEBHOOK_URL || '');
-        hook.send(`Room created with code \`${roomCode}\` by \`${os.hostname().split('.')[0]}\` on \`${getLocalIP()}:${process.env.PORT}\` address <@&1298573711015804949>`);
+        hook.send(`Room created with code \`${roomCode}\` by \`${os.hostname().split('.')[0]}\` on \`${ngrokUrl}\` address <@&1298573711015804949>`);
     });
 }
 

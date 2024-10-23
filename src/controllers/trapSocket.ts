@@ -21,6 +21,8 @@ export const trapSocket = (socket: Socket) => {
     socket.on('traps:reload', async () => {
         const traps = await reloadTraps(socket);
         traps?.forEach(trap => socket.emit('traps:place', { trap, playerId: socket.id }));
+
+        await goToNextFloor(socket);
     });
 };
 
@@ -74,15 +76,18 @@ async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
 /**
  * Récupère la salle à partir de l'ID du socket.
  * @param socket - L'instance de Socket.IO
+ * @param isGodCheck
  * @returns La salle correspondante ou null
  */
-async function getRoom(socket: Socket) {
+async function getRoom(socket: Socket, isGodCheck: boolean = true) {
     const user = checkUserInRoom(socket);
     if (!user) return handleError(socket, 'Vous n\'êtes pas dans une salle');
 
-    if (!isPlayer(socket)) return handleError(socket, 'Vous n\'êtes pas un dieu');
+    if (!isPlayer(socket) && isGodCheck) return handleError(socket, 'Vous n\'êtes pas un dieu');
 
-    const room = await clientDB.collection('rooms').findOne({ 'gods.id': socket.id });
+    const findQuery = await isPlayer(socket) ? { 'players.id': socket.id } : { 'gods.id': socket.id };
+
+    const room = await clientDB.collection('rooms').findOne(findQuery);
     if (!room) return handleError(socket, 'Salle non trouvée');
 
     return room;
@@ -124,4 +129,27 @@ async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
 async function reloadTraps(socket: Socket) {
     const room = await getRoom(socket);
     return room?.traps || [];
+}
+
+async function goToNextFloor(socket: Socket) {
+    console.log("Hello")
+    const room = await getRoom(socket, false);
+    if (!room) return;
+
+    if (!isPlayer(socket)) return handleError(socket, 'Vous n\'êtes pas un joueur');
+
+    const { floor, bank } = room;
+
+    // Les gods on une banque en commun. A chaque nouveau étage, on ajoute 2 pieces à la banque.
+    const newBank = bank + 2;
+    const newFloor = floor + 1;
+
+    await clientDB.collection('rooms').updateOne(
+        { 'players.id': socket.id },
+        { $set: { floor: newFloor, bank: newBank } }
+    ).then(() => {
+        return clientDB.collection('rooms').findOne({ 'players.id': socket.id });
+    }).then((newRoom) => {
+        socket.to(room.code).emit('rooms:events', newRoom);
+    });
 }
