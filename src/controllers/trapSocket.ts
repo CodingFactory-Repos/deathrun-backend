@@ -85,7 +85,9 @@ async function getRoom(socket: Socket, isGodCheck: boolean = true) {
 
     if (!isPlayer(socket) && isGodCheck) return handleError(socket, 'Vous n\'êtes pas un dieu');
 
-    const room = await clientDB.collection('rooms').findOne({ 'gods.id': socket.id });
+    const findQuery = await isPlayer(socket) ? { 'players.id': socket.id } : { 'gods.id': socket.id };
+
+    const room = await clientDB.collection('rooms').findOne(findQuery);
     if (!room) return handleError(socket, 'Salle non trouvée');
 
     return room;
@@ -130,6 +132,7 @@ async function reloadTraps(socket: Socket) {
 }
 
 async function goToNextFloor(socket: Socket) {
+    console.log("Hello")
     const room = await getRoom(socket, false);
     if (!room) return;
 

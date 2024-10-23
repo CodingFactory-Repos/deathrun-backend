@@ -6,6 +6,7 @@ import routes from './routes';
 import { initializeSockets } from './sockets';
 import cors from 'cors';
 import {clientDB} from "./utils/databaseHelper";
+import ngrok from 'ngrok';
 
 const app = express();
 const server = createServer(app);
@@ -23,4 +24,11 @@ initializeSockets(io);
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}.`);
+
+  ngrok.connect(PORT).then(url => {
+    console.log(`Server running on ${url}.`);
+    ngrokUrl = url;
+  });
 });
+
+export let ngrokUrl: string;
