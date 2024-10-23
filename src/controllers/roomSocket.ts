@@ -39,6 +39,8 @@ function createRoom(socket: Socket) {
         players: [{id: socket.id}],
         gods: [],
         started: false,
+        floor: 0,
+        bank: 0,
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
