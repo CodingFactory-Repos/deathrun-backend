@@ -17,5 +17,5 @@ db.rooms.insertOne({
 
 // Insertion de plusieurs documents dans la collection "traps"
 db.traps.insertMany([
-    {name: "crossbow", price: 3}
+    {name: "crossbow_down_prefab", price: 3}
 ]);
