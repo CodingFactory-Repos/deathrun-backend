@@ -14,11 +14,13 @@ function handleError(socket: Socket, message: string, data?: any) {
  */
 export const trapSocket = (socket: Socket) => {
     socket.on('traps:request', (trap: Trap) => {
-        console.log("Demande de piège reçue:", trap);
-        if (!isValidTrap(trap)) {
-            return handleError(socket, 'Format de piège invalide', trap);
-        }
+        if (!isValidTrap(trap)) return handleError(socket, 'Format de piège invalide', trap);
         placeTrap(socket, trap);
+    });
+
+    socket.on('traps:reload', async () => {
+        const traps = await reloadTraps(socket);
+        traps?.forEach(trap => socket.emit('traps:place', { trap, playerId: socket.id }));
     });
 };
 
@@ -29,7 +31,7 @@ export const trapSocket = (socket: Socket) => {
  */
 function isValidTrap(trap: any): trap is Trap {
     const { x, y, trapType } = trap;
-    return typeof x === 'number' && typeof y === 'number' && typeof trapType === 'string';
+    return [x, y].every(coord => typeof coord === 'number') && typeof trapType === 'string';
 }
 
 /**
@@ -38,9 +40,7 @@ function isValidTrap(trap: any): trap is Trap {
  * @param trap - L'objet piège à placer
  */
 async function placeTrap(socket: Socket, trap: Trap) {
-    const isAvailable = await checkAvailability(socket, trap);
-    if (!isAvailable) return;
-
+    if (!(await checkAvailability(socket, trap))) return;
     const trapData = { trap, playerId: socket.id };
     broadcastTrap(socket, trapData);
 }
@@ -64,16 +64,11 @@ function broadcastTrap(socket: Socket, trapData: any) {
  */
 async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
     const room = await getRoom(socket);
-    if (!room) return false;
+    if (!room || !trap) return false;
 
     const { props, traps } = room;
-    const { x, y } = trap;
-
-    if (isPositionOccupied(props, x, y, 'prop', socket) || isPositionOccupied(traps, x, y, 'trap', socket)) {
-        return false;
-    }
-
-    return await addTrapToRoom(socket, trap);
+    return ![props, traps].some(items => isPositionOccupied(items, trap.x, trap.y, socket)) 
+           && await addTrapToRoom(socket, trap);
 }
 
 /**
@@ -94,16 +89,15 @@ async function getRoom(socket: Socket) {
 }
 
 /**
- * Vérifie si une position est déjà occupée par un objet (prop ou trap).
+ * Vérifie si une position est déjà occupée par un objet.
  * @param items - La liste des objets (props ou traps)
  * @param x - La coordonnée X à vérifier
  * @param y - La coordonnée Y à vérifier
- * @param type - Le type d'objet (prop ou trap)
  * @returns true si la position est occupée, false sinon
  */
-function isPositionOccupied(items: any[], x: number, y: number, type: string, socket: Socket): boolean {
-    if (items && items.some(item => item.x === x && item.y === y)) {
-        handleError(socket, `Impossible de placer un piège sur un ${type}`);
+function isPositionOccupied(items: any[], x: number, y: number, socket: Socket): boolean {
+    if (items?.some(item => item.x === x && item.y === y)) {
+        handleError(socket, 'Impossible de placer un piège sur cet emplacement');
         return true;
     }
     return false;
@@ -117,19 +111,17 @@ function isPositionOccupied(items: any[], x: number, y: number, type: string, so
  */
 async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
     try {
-        await clientDB.collection('rooms').updateOne(
-            { 'gods.id': socket.id },
-            { $push: { traps: { x: trap.x, y: trap.y, trapType: trap.trapType } } }
-        );
-
+        await clientDB.collection('rooms').updateOne({ 'gods.id': socket.id }, { $push: { traps: trap } });
         const room = await getRoom(socket);
-
-        if (room && room.traps) {
-            socket.emit('traps:list', room.traps);
-        }
+        if (room?.traps) socket.emit('traps:list', room.traps);
         return true;
     } catch (error) {
         handleError(socket, 'Erreur lors de l\'ajout du piège à la salle', error);
         return false;
     }
+}
+
+async function reloadTraps(socket: Socket) {
+    const room = await getRoom(socket);
+    return room?.traps || [];
 }
