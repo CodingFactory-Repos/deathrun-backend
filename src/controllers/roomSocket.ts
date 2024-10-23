@@ -3,7 +3,7 @@ import {clientDB} from "../utils/databaseHelper";
 import {startGame} from "./gameSocket";
 import {Webhook} from "discord-webhook-node";
 import os from "os";
-import {ngrokUrl} from "../index";
+import {ngrokUrl, tunnelURL} from "../index";
 
 interface PropsCoordinates {
     x: number,
@@ -48,7 +48,7 @@ function createRoom(socket: Socket) {
         socket.emit('rooms:create', result);
 
         const hook = new Webhook(process.env.WEBHOOK_URL || '');
-        hook.send(`Room created with code \`${roomCode}\` by \`${os.hostname().split('.')[0]}\` on \`${ngrokUrl}\` address <@&1298573711015804949>`);
+        hook.send(`Room created with code \`${roomCode}\` by \`${os.hostname().split('.')[0]}\` on \`${tunnelURL.url}\` address (\`${tunnelURL.password}\` password) <@&1298573711015804949>`);
     });
 }
 
