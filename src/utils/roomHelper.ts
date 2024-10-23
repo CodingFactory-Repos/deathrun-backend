@@ -2,7 +2,7 @@ import { Socket } from 'socket.io';
 import { clientDB } from './databaseHelper';
 
 export const checkUserInRoom = async (socket: Socket): Promise<{ room: string, role: 'player' | 'god' } | false> => {
-  const playerRoom = await clientDB.collection('rooms').findOne({ players: socket.id });
+  const playerRoom = await clientDB.collection('rooms').findOne({ 'players.id': socket.id });
   if (playerRoom) {
     return { room: playerRoom.code, role: 'player' };
   }
