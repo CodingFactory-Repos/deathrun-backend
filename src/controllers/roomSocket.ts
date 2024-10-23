@@ -28,7 +28,8 @@ export const roomSocket = (socket: Socket) => {
 };
 
 function createRoom(socket: Socket) {
-    const roomCode = Math.random().toString(36).substring(7);
+    // Genere random number code
+    const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
     clientDB.collection('rooms').insertOne({
         code: roomCode,
         creator: socket.id,
