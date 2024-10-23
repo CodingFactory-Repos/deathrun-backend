@@ -6,7 +6,8 @@ import routes from './routes';
 import { initializeSockets } from './sockets';
 import cors from 'cors';
 import {clientDB} from "./utils/databaseHelper";
-import ngrok from 'ngrok';
+import localtunnel from 'localtunnel';
+import os from "os";
 
 const app = express();
 const server = createServer(app);
@@ -22,13 +23,16 @@ app.use('/', routes);
 initializeSockets(io);
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`Server running on http://localhost:${PORT}.`);
 
-  ngrok.connect(PORT).then(url => {
-    console.log(`Server running on ${url}.`);
-    ngrokUrl = url;
-  });
+  const tunnel = await localtunnel({
+    port: Number(PORT),
+    subdomain: os.hostname().split('.')[0].toLowerCase(),
+  })
+
+  ngrokUrl = tunnel.url;
+  console.log(`Tunnel running on ${ngrokUrl}`);
 });
 
 export let ngrokUrl: string;
