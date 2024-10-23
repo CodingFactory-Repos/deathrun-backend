@@ -1,9 +1,16 @@
 import {Socket} from 'socket.io';
 import {clientDB} from "../utils/databaseHelper";
+import {startGame} from "./gameSocket";
 
 interface PropsCoordinates {
     x: number,
     y: number
+}
+
+interface joinRoomData {
+    code: string,
+    joinAs: "player" | "god",
+    godId?: number
 }
 
 export const roomSocket = (socket: Socket) => {
@@ -14,15 +21,21 @@ export const roomSocket = (socket: Socket) => {
     socket.on('rooms:join', (msg: { code: string, joinAs: "player" | "god" }) => {
         joinRoom(socket, msg);
     });
+
+    socket.on('rooms:start', () => {
+        startGame(socket);
+    });
 };
 
 function createRoom(socket: Socket) {
-    const roomCode = Math.random().toString(36).substring(7);
+    // Genere random number code
+    const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
     clientDB.collection('rooms').insertOne({
         code: roomCode,
         creator: socket.id,
         players: [{id: socket.id}],
         gods: [],
+        started: false,
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
@@ -31,48 +44,43 @@ function createRoom(socket: Socket) {
     });
 }
 
-function joinRoom(socket: Socket, data: { code: string, joinAs: "player" | "god", godId?: number }) {
+function joinRoom(socket: Socket, data: joinRoomData) {
     clientDB.collection('rooms').findOne({code: data.code, players: {$ne: {id: socket.id}}}).then(async (room) => {
-        if (room) {
-            // Check if the player or god is already in the room
-            const isPlayer = room.players.some((player: any) => player.id === socket.id);
-            const isGod = room.gods.some((god: any) => god.id === socket.id);
-
-            if (!isPlayer && !isGod) {
-                if (data.joinAs === 'god' && !data.godId) {
-                    socket.emit('rooms:join', {error: 'godId is required'});
-                    return;
-                }
-
-                // Check if the godId is already in the room
-                if (data.joinAs === 'god' && room.gods.some((god: any) => god.god === data.godId)) {
-                    socket.emit('rooms:join', {error: 'God already in the room'});
-                    return;
-                }
-
-                const roleData = data.joinAs === 'player'
-                    ? {$push: {players: {id: socket.id}}}
-                    : {$push: {gods: {id: socket.id, god: data.godId}}}; // Ajout du rôle god avec l'attribut
-
-                await clientDB.collection('rooms').updateOne(
-                    {code: data.code},
-                    roleData as any
-                );
-            }
-
-            await clientDB.collection('rooms').findOne({code: data.code}).then(async (updatedRoom) => {
-                if (updatedRoom && updatedRoom.creator) {
-                    socket.join(data.code); // Join the room
-                    socket.emit('rooms:join', updatedRoom); // Send the room data to the player
-
-                    socket.to(data.code).emit('rooms:events', updatedRoom); // Send the room data to the other players
-                    console.log(socket.id + ' joined room ' + data.code);
-
-                    socket.to(updatedRoom.creator).emit('trapper:join', {player: socket.id}); // Send the player id to the creator
-                }
-            });
-        } else {
+        if (!room) {
             socket.emit('rooms:join', {error: 'Room not found'});
+            return;
+        }
+
+        const isPlayer = room.players.some((player: any) => player.id === socket.id);
+        const isGod = room.gods.some((god: any) => god.id === socket.id);
+
+        if (isPlayer || isGod) return;
+
+        if (data.joinAs === 'god') {
+            if (!data.godId) {
+                socket.emit('rooms:join', {error: 'godId is required'});
+                return;
+            }
+            if (room.gods.some((god: any) => god.god === data.godId)) {
+                socket.emit('rooms:join', {error: 'God already in the room'});
+                return;
+            }
+        }
+
+        const roleData = data.joinAs === 'player'
+            ? {$push: {players: {id: socket.id}}}
+            : {$push: {gods: {id: socket.id, god: data.godId}}};
+
+        await clientDB.collection('rooms').updateOne({code: data.code}, roleData);
+
+        const updatedRoom = await clientDB.collection('rooms').findOne({code: data.code});
+        if (updatedRoom && updatedRoom.creator) {
+            socket.to(data.code).emit('rooms:events', updatedRoom);
+            socket.join(data.code);
+            socket.emit('rooms:join', updatedRoom);
+            socket.to(updatedRoom.creator).emit('trapper:join', {player: socket.id});
+
+            console.log(socket.id + ' joined room ' + data.code);
         }
     });
 }
