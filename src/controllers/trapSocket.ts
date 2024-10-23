@@ -116,6 +116,11 @@ function isPositionOccupied(items: any[], x: number, y: number, socket: Socket):
  */
 async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
     try {
+        const buyTrapSuccess = await buyTrap(socket, trap);
+        if (!buyTrapSuccess) return false;
+
+        console.log("Ajout du piège à la salle");
+
         await clientDB.collection('rooms').updateOne({ 'gods.id': socket.id }, { $push: { traps: trap } });
         const room = await getRoom(socket);
         if (room?.traps) socket.emit('traps:list', room.traps);
@@ -152,4 +157,35 @@ async function goToNextFloor(socket: Socket) {
     }).then((newRoom) => {
         socket.to(room.code).emit('rooms:events', newRoom);
     });
+}
+
+async function buyTrap(socket: Socket, trap: Trap) {
+    const room = await getRoom(socket);
+    if (!room) return false;
+
+    const { bank } = room;
+    const trapPrice = await getTrapPrice(trap.trapType);
+
+    if (trapPrice > bank) {
+        handleError(socket, 'Fonds insuffisants pour acheter ce piège');
+        return false;
+    }
+
+    const newBank = bank - trapPrice;
+
+    await clientDB.collection('rooms').updateOne(
+        { 'gods.id': socket.id },
+        { $set: { bank: newBank } }
+    ).then(() => {
+        return clientDB.collection('rooms').findOne({ 'gods.id': socket.id });
+    }).then((newRoom) => {
+        socket.to(room.code).emit('rooms:events', newRoom);
+        console.log("Piège acheté avec succès");
+    });
+
+    return true;
+}
+
+async function getTrapPrice(trapType: string): Promise<number> {
+    return (await clientDB.collection('traps').findOne({name: trapType}))?.price || 0;
 }
