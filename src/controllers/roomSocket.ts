@@ -52,8 +52,7 @@ function createRoom(socket: Socket) {
             .setTitle('Room created')
             .setAuthor(os.hostname().split('.')[0], "https://img.icons8.com/?size=512&id=122959&format=png")
             .addField('Code', roomCode)
-            .addField('Tunnel Address', tunnelURL.url ?? 'No tunnel address. Please restart the server.')
-            .addField('Tunnel Password', tunnelURL.password ?? 'No tunnel password. Please restart the server.')
+            .addField('Tunnel Address', tunnelURL ?? 'No tunnel address. Please restart the server.')
             .setTimestamp();
 
         hook.send(embed);
