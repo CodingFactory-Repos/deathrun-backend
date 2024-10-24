@@ -6,7 +6,7 @@ import routes from './routes';
 import {initializeSockets} from './sockets';
 import cors from 'cors';
 import {clientDB} from "./utils/databaseHelper";
-import ngrok from '@ngrok/ngrok';
+import axios from "axios";
 
 const app = express();
 const server = createServer(app);
@@ -25,12 +25,26 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}.`);
 
-    createTunnel(Number(PORT));
+    checkTunnel();
 });
 
-async function createTunnel(port: number) {
-    tunnelURL = (await ngrok.connect({addr: port, authtoken_from_env: true, domain: process.env.NGROK_DOMAIN})).url();
-    console.log(`Tunnel created at ${tunnelURL}`);
+async function checkTunnel() {
+    tunnelURL = process.env.TUNNEL_URL || null;
+
+    if (tunnelURL) {
+        const data = await axios.get(tunnelURL)
+            .then(res => res.data)
+            .catch(() => null);
+
+        if (data && data === 'Hello World!') {
+            console.log(`Tunnel is working: ${tunnelURL}`);
+        } else {
+            console.log('Tunnel is not working. Please check your .env url.');
+            tunnelURL = null;
+        }
+    } else {
+        console.log('Tunnel URL not found in .env file.');
+    }
 }
 
 export let tunnelURL: string | null;
