@@ -21,8 +21,6 @@ export const trapSocket = (socket: Socket) => {
     socket.on('traps:reload', async () => {
         const traps = await reloadTraps(socket);
         traps?.forEach(trap => socket.emit('traps:place', {trap, playerId: socket.id}));
-
-        await goToNextFloor(socket);
     });
 };
 
@@ -134,36 +132,6 @@ async function reloadTraps(socket: Socket) {
     return room?.traps || [];
 }
 
-async function goToNextFloor(socket: Socket) {
-    const room = await getRoom(socket, false);
-    if (!room) return;
-
-    if (!isPlayer(socket)) return handleError(socket, 'Vous n\'êtes pas un joueur');
-
-    const {floor, bank} = room;
-
-    // Les gods on une banque en commun. A chaque nouveau étage, on ajoute 2 pieces à la banque.
-    const newBank = bank + 2;
-    const newFloor = floor + 1;
-
-    await clientDB.collection('rooms').updateOne(
-        {'players.id': socket.id},
-        {$set: {floor: newFloor, bank: newBank}}
-    ).then(() => {
-        return clientDB.collection('rooms').findOne({'players.id': socket.id});
-    }).then(async () => {
-        const updatedRoom = await clientDB.collection('rooms').findOne({'gods.id': socket.id});
-        if (updatedRoom) {
-            const equalSpendingLimit = Math.floor(updatedRoom.bank / updatedRoom.gods.length);
-            await clientDB.collection('rooms').updateMany(
-                {'gods.id': {$in: updatedRoom.gods.map((god: any) => god.id)}},
-                {$set: {'gods.$[].spendingLimit': equalSpendingLimit}}
-            );
-            socket.to(room.code).emit('rooms:events', updatedRoom);
-        }
-    });
-}
-
 async function buyTrap(socket: Socket, trap: Trap) {
     const room = await getRoom(socket);
     if (!room) return false;
@@ -193,8 +161,10 @@ async function buyTrap(socket: Socket, trap: Trap) {
         }
     ).then(() => {
         return clientDB.collection('rooms').findOne({'gods.id': socket.id});
-    }).then((newRoom) => {
-        socket.to(room.code).emit('rooms:events', newRoom);
+    }).then((updatedRoom) => {
+        // Broadcast the updated room to all clients
+        socket.to(room.code).emit('rooms:events', updatedRoom);
+        socket.emit('rooms:events', updatedRoom);
     });
 
     return true;

@@ -4,6 +4,7 @@ import {startGame} from "./gameSocket";
 import {MessageBuilder, Webhook} from "discord-webhook-node";
 import os from "os";
 import {tunnelURL} from "../index";
+import {getRoom, getRoomBySocket, isPlayer} from "../utils/roomHelper";
 
 interface PropsCoordinates {
     x: number,
@@ -28,6 +29,10 @@ export const roomSocket = (socket: Socket) => {
     socket.on('rooms:start', () => {
         startGame(socket);
     });
+
+    socket.on('rooms:corridor', () => {
+        goToNextFloor(socket);
+    });
 };
 
 function createRoom(socket: Socket) {
@@ -40,7 +45,7 @@ function createRoom(socket: Socket) {
         gods: [],
         started: false,
         floor: 0,
-        bank: 8,
+        bank: 10,
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
@@ -100,8 +105,9 @@ function joinRoom(socket: Socket, data: joinRoomData) {
 
         const updatedRoom = await clientDB.collection('rooms').findOne({code: data.code});
         if (updatedRoom && updatedRoom.creator) {
-            socket.to(data.code).emit('rooms:events', updatedRoom);
             socket.join(data.code);
+
+            socket.to(data.code).emit('rooms:events', updatedRoom);
             socket.emit('rooms:join', updatedRoom);
             socket.to(updatedRoom.creator).emit('trapper:join', {player: socket.id});
 
@@ -149,4 +155,39 @@ export async function disconnectRoom(socket: Socket) {
     } catch (error) {
         console.error('Error disconnecting room:', error);
     }
+}
+
+async function goToNextFloor(socket: Socket) {
+
+    const room = await getRoomBySocket(socket);
+    if (!room) return;
+
+    if (!(await isPlayer(socket))) return socket.emit('error', 'You are not a player');
+
+    const {floor, bank} = room;
+
+    // Les gods on une banque en commun. A chaque nouveau étage, on ajoute 2 pieces à la banque.
+    const newFloor = floor + 1;
+    const newBank = bank + newFloor;
+
+    await clientDB.collection('rooms').updateOne(
+        {'players.id': socket.id},
+        {$set: {floor: newFloor, bank: newBank}}
+    ).then(() => {
+        return clientDB.collection('rooms').findOne({'players.id': socket.id});
+    }).then(async () => {
+        const updatedRoom = await clientDB.collection('rooms').findOne({'gods.id': socket.id});
+        if (updatedRoom) {
+            const equalSpendingLimit = Math.floor(updatedRoom.bank / updatedRoom.gods.length);
+            await clientDB.collection('rooms').updateMany(
+                {'gods.id': {$in: updatedRoom.gods.map((god: any) => god.id)}},
+                {$set: {'gods.$[].spendingLimit': equalSpendingLimit}}
+            );
+            socket.to(room.code).emit('rooms:events', updatedRoom);
+
+            console.log(socket.id + ' went to next floor in room ' + room.code);
+            console.log('New floor: ' + newFloor);
+            console.log('New bank: ' + newBank);
+        }
+    });
 }
