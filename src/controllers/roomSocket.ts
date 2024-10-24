@@ -40,7 +40,7 @@ function createRoom(socket: Socket) {
         gods: [],
         started: false,
         floor: 0,
-        bank: 0,
+        bank: 8,
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
@@ -82,11 +82,21 @@ function joinRoom(socket: Socket, data: joinRoomData) {
             }
         }
 
-        const roleData = data.joinAs === 'player'
+        const updateData = data.joinAs === 'player'
             ? {$push: {players: {id: socket.id}}}
-            : {$push: {gods: {id: socket.id, god: data.godId}}};
+            : {$push: {gods: {id: socket.id, god: data.godId, spendingLimit: 0}}};
 
-        await clientDB.collection('rooms').updateOne({code: data.code}, roleData);
+        await clientDB.collection('rooms').updateOne({code: data.code}, updateData);
+
+        // Recalculate spending limits for all gods
+        if (data.joinAs === 'god') {
+            const updatedRoom = await clientDB.collection('rooms').findOne({code: data.code});
+            const newSpendingLimit = Math.floor(updatedRoom.bank / updatedRoom.gods.length);
+            await clientDB.collection('rooms').updateMany(
+                {code: data.code},
+                {$set: {'gods.$[].spendingLimit': newSpendingLimit}}
+            );
+        }
 
         const updatedRoom = await clientDB.collection('rooms').findOne({code: data.code});
         if (updatedRoom && updatedRoom.creator) {
@@ -124,10 +134,16 @@ export async function disconnectRoom(socket: Socket) {
             await clientDB.collection('rooms').updateMany(
                 {_id: godRoom._id},
                 {$pull: {gods: {id: socket.id}}} // On supprime l'objet entier où l'id correspond
-            ).then(() => {
-                return clientDB.collection('rooms').findOne({_id: godRoom._id});
-            }).then((updatedRoom) => {
-                socket.to(godRoom.code).emit('rooms:events', updatedRoom);
+            ).then(async () => {
+                const updatedRoom = await clientDB.collection('rooms').findOne({_id: godRoom._id});
+                if (updatedRoom) {
+                    const newSpendingLimit = Math.floor(updatedRoom.bank / updatedRoom.gods.length);
+                    await clientDB.collection('rooms').updateMany(
+                        {_id: godRoom._id},
+                        {$set: {'gods.$[].spendingLimit': newSpendingLimit}}
+                    );
+                    socket.to(godRoom.code).emit('rooms:events', updatedRoom);
+                }
             });
         }
     } catch (error) {

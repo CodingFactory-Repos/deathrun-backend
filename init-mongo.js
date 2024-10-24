@@ -12,7 +12,7 @@ db.rooms.insertOne({
     props: [{x: 4, y: 5}],
     started: false,
     floor: 0,
-    bank: 0
+    bank: 8
 });
 
 // Insertion de plusieurs documents dans la collection "traps"
