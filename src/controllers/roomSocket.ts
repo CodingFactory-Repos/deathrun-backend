@@ -158,9 +158,10 @@ export async function disconnectRoom(socket: Socket) {
 }
 
 async function goToNextFloor(socket: Socket) {
-
     const room = await getRoomBySocket(socket);
     if (!room) return;
+
+    console.log(socket.id + ' went to next floor in room ' + room.code);
 
     if (!(await isPlayer(socket))) return socket.emit('error', 'You are not a player');
 
@@ -176,7 +177,7 @@ async function goToNextFloor(socket: Socket) {
     ).then(() => {
         return clientDB.collection('rooms').findOne({'players.id': socket.id});
     }).then(async () => {
-        const updatedRoom = await clientDB.collection('rooms').findOne({'gods.id': socket.id});
+        const updatedRoom = await clientDB.collection('rooms').findOne({'players.id': socket.id});
         if (updatedRoom) {
             const equalSpendingLimit = Math.floor(updatedRoom.bank / updatedRoom.gods.length);
             await clientDB.collection('rooms').updateMany(
@@ -184,10 +185,6 @@ async function goToNextFloor(socket: Socket) {
                 {$set: {'gods.$[].spendingLimit': equalSpendingLimit}}
             );
             socket.to(room.code).emit('rooms:events', updatedRoom);
-
-            console.log(socket.id + ' went to next floor in room ' + room.code);
-            console.log('New floor: ' + newFloor);
-            console.log('New bank: ' + newBank);
         }
     });
 }
