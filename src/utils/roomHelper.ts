@@ -15,6 +15,16 @@ export const checkUserInRoom = async (socket: Socket): Promise<{ room: string, r
   return false;
 };
 
+export const getRoom = async (code: string): Promise<any | null> => {
+  const room = await clientDB.collection('rooms').findOne({ code: code });
+
+  if (room) {
+    return room;
+  }
+
+  return null;
+};
+
 export const isPlayer = async (socket: Socket): Promise<boolean> => {
     const playerRoom = await checkUserInRoom(socket);
     if (playerRoom) return playerRoom.role === 'player';
