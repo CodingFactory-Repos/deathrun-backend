@@ -36,6 +36,11 @@ export const roomSocket = (socket: Socket) => {
 
     socket.on('rooms:corridor', () => {
         goToNextFloor(socket);
+        disablePlayerTracking(socket);
+    });
+
+    socket.on('traps:reload', () => {
+        enablePlayerTracking(socket);
     });
 };
 
@@ -193,4 +198,18 @@ async function goToNextFloor(socket: Socket) {
             socket.to(room.code).emit('rooms:events', updatedRoom);
         }
     });
+}
+
+async function disablePlayerTracking(socket: Socket) {
+    const room = await getRoomBySocket(socket);
+    if (!room) return;
+
+    socket.to(room.code).emit('disable:tracking');
+}
+
+async function enablePlayerTracking(socket: Socket) {
+    const room = await getRoomBySocket(socket);
+    if (!room) return;
+
+    socket.to(room.code).emit('enable:tracking');
 }
