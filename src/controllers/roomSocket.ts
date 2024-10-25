@@ -1,6 +1,6 @@
 import {Socket} from 'socket.io';
 import {clientDB} from "../utils/databaseHelper";
-import {startGame} from "./gameSocket";
+import {endGame, startGame} from "./gameSocket";
 import {MessageBuilder, Webhook} from "discord-webhook-node";
 import os from "os";
 import {tunnelURL} from "../index";
@@ -30,6 +30,10 @@ export const roomSocket = (socket: Socket) => {
         startGame(socket);
     });
 
+    socket.on('rooms:end', () => {
+        endGame(socket);
+    });
+
     socket.on('rooms:corridor', () => {
         goToNextFloor(socket);
     });
@@ -46,6 +50,8 @@ function createRoom(socket: Socket) {
         started: false,
         floor: 0,
         bank: 10,
+        score: 0,
+        enterInRoomAt: new Date()
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
