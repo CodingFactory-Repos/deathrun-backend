@@ -45,7 +45,7 @@ function createRoom(socket: Socket) {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
         socket.join(roomCode);
-        socket.emit('rooms:create', result);
+        socket.emit('rooms:code', result);
 
         const hook = new Webhook(process.env.WEBHOOK_URL || '');
         const embed = new MessageBuilder()
