@@ -29,6 +29,10 @@ async function sendProps(socket: Socket, props: [string]) {
                 {creator: socket.id},
                 {$set: {props: coordinates}}
             );
+
+            const updatedRoom = await clientDB.collection('rooms').findOne({creator: socket.id});
+
+            socket.to(updatedRoom?.code).emit('rooms:events', updatedRoom)
         } else {
             console.warn(`Aucune salle trouvée pour le socket ${socket.id}`);
         }
