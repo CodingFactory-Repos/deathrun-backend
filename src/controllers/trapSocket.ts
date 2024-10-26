@@ -1,7 +1,7 @@
 import { Socket } from 'socket.io';
 import { Trap } from "../interfaces/trap";
 import { clientDB } from "../utils/databaseHelper";
-import {checkUserInRoom, isPlayer} from "../utils/roomHelper";
+import {checkUserInRoom, isPlayer, findPathBFS} from "../utils/roomHelper";
 
 function handleError(socket: Socket, message: string, data?: any) {
     console.error(message, data);
@@ -69,6 +69,32 @@ async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
     if (!room || !trap) return false;
 
     const { props, traps } = room;
+
+    // Collect all occupied positions
+    const blockedPositions = new Set<string>();
+    if (props) {
+        props.forEach(prop => blockedPositions.add(`${prop.x},${prop.y}`));
+    }
+    if (traps) {
+        traps.forEach(existingTrap => {
+            blockedPositions.add(`${existingTrap.x},${existingTrap.y}`);
+        });
+    }
+
+    // Temporarily add the new trap position to check if it blocks the path
+    blockedPositions.add(`${trap.x},${trap.y}`);
+    
+    const start = { x: 4, y: 0 };
+    const exit = { x: 4, y: 22 };
+
+    const isPathClear = await findPathBFS(start, exit, blockedPositions);
+    
+    if (!isPathClear) {
+        handleError(socket, 'Placement du piège bloquerait le chemin entre le départ et la sortie');
+        return false;
+    }
+
+    // Check if the position is available and add trap to the room if everything is fine
     return ![props, traps].some(items => isPositionOccupied(items, trap.x, trap.y, socket)) 
            && await addTrapToRoom(socket, trap);
 }
@@ -118,6 +144,14 @@ async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
     try {
         const buyTrapSuccess = await buyTrap(socket, trap);
         if (!buyTrapSuccess) return false;
+
+        const trapsCollided = ['crossbow']
+   
+        if (trapsCollided.some(trapName => trap.trapType.includes(trapName))) {
+            trap.collided = true;
+        } else {
+            trap.collided = false;
+        }
 
         console.log("Ajout du piège à la salle");
 
