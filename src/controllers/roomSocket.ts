@@ -5,6 +5,7 @@ import {MessageBuilder, Webhook} from "discord-webhook-node";
 import os from "os";
 import {tunnelURL} from "../index";
 import {getRoomBySocket, isPlayer, getGodsFromRoom} from "../utils/roomHelper";
+import {disconnectUser} from "../utils/userHelper";
 
 interface PropsCoordinates {
     x: number,
@@ -237,5 +238,6 @@ async function deleteRoom(socket: Socket) {
         gods?.forEach((god) => {
             socket.to(god).emit('rooms:delete');
         });
+        disconnectUser(socket);
     });
 }
