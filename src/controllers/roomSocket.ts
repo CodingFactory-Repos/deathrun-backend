@@ -4,7 +4,8 @@ import {endGame, startGame} from "./gameSocket";
 import {MessageBuilder, Webhook} from "discord-webhook-node";
 import os from "os";
 import {tunnelURL} from "../index";
-import {getRoom, getRoomBySocket, isPlayer} from "../utils/roomHelper";
+import {getRoomBySocket, isPlayer, getGodsFromRoom} from "../utils/roomHelper";
+import {disconnectUser} from "../utils/userHelper";
 
 interface PropsCoordinates {
     x: number,
@@ -42,9 +43,17 @@ export const roomSocket = (socket: Socket) => {
     socket.on('traps:reload', () => {
         enablePlayerTracking(socket);
     });
+
+    socket.on('rooms:disconnect', () => {
+        deleteRoom(socket);
+    });
 };
 
-function createRoom(socket: Socket) {
+async function createRoom(socket: Socket) {
+    if (await hasAlreadyRoom(socket)) {
+        return;
+    }
+    
     // Genere random number code
     const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
     clientDB.collection('rooms').insertOne({
@@ -129,15 +138,13 @@ function joinRoom(socket: Socket, data: joinRoomData) {
 
 export async function disconnectRoom(socket: Socket) {
     try {
-        // Supprimer les salles créées par le joueur qui se déconnecte
         await clientDB.collection('rooms').deleteMany({creator: socket.id});
 
-        // Supprimer le joueur des salles où il est inscrit
         const playerRoom = await clientDB.collection('rooms').findOne({'players.id': socket.id});
         if (playerRoom) {
             await clientDB.collection('rooms').updateMany(
                 {_id: playerRoom._id},
-                {$pull: {players: {id: socket.id}}} // On supprime l'objet entier où l'id correspond
+                {$pull: {players: {id: socket.id}}}
             ).then(() => {
                 return clientDB.collection('rooms').findOne({_id: playerRoom._id});
             }).then((updatedRoom) => {
@@ -212,4 +219,25 @@ async function enablePlayerTracking(socket: Socket) {
     if (!room) return;
 
     socket.to(room.code).emit('enable:tracking');
+}
+
+function hasAlreadyRoom(socket: Socket): boolean {
+    return clientDB.collection('rooms').findOne({creator: socket.id}).then((room) => {
+        if (room) {
+            console.log(socket.id + ' already has a room');
+            return true;
+        }
+        return false
+    });
+}
+
+async function deleteRoom(socket: Socket) {
+    const gods = await getGodsFromRoom(socket);
+    clientDB.collection('rooms').deleteOne({creator: socket.id}).then(() => {
+        // Emit to every god in the room the socket
+        gods?.forEach((god) => {
+            socket.to(god).emit('rooms:delete');
+        });
+        disconnectUser(socket);
+    });
 }

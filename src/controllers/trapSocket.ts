@@ -1,7 +1,7 @@
-import {Socket} from 'socket.io';
-import {Trap} from "../interfaces/trap";
-import {clientDB} from "../utils/databaseHelper";
-import {checkUserInRoom, isPlayer} from "../utils/roomHelper";
+import { Socket } from 'socket.io';
+import { Trap } from "../interfaces/trap";
+import { clientDB } from "../utils/databaseHelper";
+import {checkUserInRoom, isPlayer, findPathBFS} from "../utils/roomHelper";
 
 function handleError(socket: Socket, message: string, data?: any) {
     console.error(message, data);
@@ -40,9 +40,15 @@ function isValidTrap(trap: any): trap is Trap {
  * @param trap - L'objet piège à placer
  */
 async function placeTrap(socket: Socket, trap: Trap) {
+    trap.collided = isTrapCollided(trap);
     if (!(await checkAvailability(socket, trap))) return;
     const trapData = {trap, playerId: socket.id};
     broadcastTrap(socket, trapData);
+}
+
+function isTrapCollided(trap: Trap) {
+    const trapsCollided = ['crossbow']
+    return trapsCollided.some(trapName => trap.trapType.includes(trapName));
 }
 
 /**
@@ -66,8 +72,36 @@ async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
     const room = await getRoom(socket);
     if (!room || !trap) return false;
 
-    const {props, traps} = room;
-    return ![props, traps].some(items => isPositionOccupied(items, trap.x, trap.y, socket))
+    const { props, traps } = room;
+
+    // Collect all occupied positions
+    const blockedPositions = new Set<string>();
+    if (props) {
+        props.forEach(prop => blockedPositions.add(`${prop.x},${prop.y}`));
+    }
+    if (traps) {
+        traps.forEach(existingTrap => {
+            if (existingTrap.collided) {
+                blockedPositions.add(`${existingTrap.x},${existingTrap.y}`);
+            }
+        });
+    }
+
+    // Temporarily add the new trap position to check if it blocks the path
+    trap.collided ? blockedPositions.add(`${trap.x},${trap.y}`) : null;
+    
+    const start = { x: 4, y: 0 };
+    const exit = { x: 4, y: 22 };
+
+    const isPathClear = await findPathBFS(start, exit, blockedPositions);
+    
+    if (!isPathClear) {
+        handleError(socket, 'Placement du piège bloquerait le chemin entre le départ et la sortie');
+        return false;
+    }
+
+    // Check if the position is available and add trap to the room if everything is fine
+    return ![props, traps].some(items => isPositionOccupied(items, trap.x, trap.y, socket)) 
         && await addTrapToRoom(socket, trap);
 }
 
@@ -117,7 +151,9 @@ async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
         const buyTrapSuccess = await buyTrap(socket, trap);
         if (!buyTrapSuccess) return false;
 
-        await clientDB.collection('rooms').updateOne({'gods.id': socket.id}, {$push: {traps: trap}});
+        console.log("Ajout du piège à la salle");
+
+        await clientDB.collection('rooms').updateOne({ 'gods.id': socket.id }, { $push: { traps: trap } });
         const room = await getRoom(socket);
         if (room?.traps) socket.emit('traps:list', room.traps);
         return true;

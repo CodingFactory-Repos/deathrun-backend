@@ -23,4 +23,5 @@ db.traps.insertMany([
     {name: "crossbow_side_left_prefab", price: 3},
     {name: "crossbow_side_right_prefab", price: 3},
     {name: "crossbow_up_prefab", price: 3},
+    {name: "bear_trap_prefab", price: 1},
 ]);
