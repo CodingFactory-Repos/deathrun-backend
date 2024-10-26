@@ -109,7 +109,7 @@ function joinRoom(socket: Socket, data: joinRoomData) {
 
         const updateData = data.joinAs === 'player'
             ? {$push: {players: {id: socket.id}}}
-            : {$push: {gods: {id: socket.id, god: data.godId, spendingLimit: 0}}};
+            : {$push: {gods: {id: socket.id, god: data.godId, spendingLimit: 0, divinityPoints: 0}}};
 
         await clientDB.collection('rooms').updateOne({code: data.code}, updateData);
 
@@ -189,6 +189,8 @@ async function goToNextFloor(socket: Socket) {
     const newFloor = floor + 1;
     const newBank = bank + newFloor;
 
+    incrementDivinityPoints(socket, newFloor);
+
     await clientDB.collection('rooms').updateOne(
         {'players.id': socket.id},
         {$set: {floor: newFloor, bank: newBank}}
@@ -198,14 +200,44 @@ async function goToNextFloor(socket: Socket) {
         const updatedRoom = await clientDB.collection('rooms').findOne({'players.id': socket.id});
         if (updatedRoom) {
             const equalSpendingLimit = Math.floor(updatedRoom.bank / updatedRoom.gods.length);
-            await clientDB.collection('rooms').updateMany(
+            clientDB.collection('rooms').updateMany(
                 {'gods.id': {$in: updatedRoom.gods.map((god: any) => god.id)}},
                 {$set: {'gods.$[].spendingLimit': equalSpendingLimit}}
-            );
-            socket.to(room.code).emit('rooms:events', updatedRoom);
+            ).then(async () => {;
+                const updatedRoom = await clientDB.collection('rooms').findOne({'players.id': socket.id});
+                socket.to(room.code).emit('rooms:events', updatedRoom);
+            });
         }
     });
 }
+
+async function incrementDivinityPoints(socket: Socket, floor: number) {
+    const room = await getRoomBySocket(socket);
+    if (!room) return;
+
+    if (floor < 9 || (floor - 10) % 3 !== 0) return;
+
+    for (const god of room.gods) {
+        if (!god) continue;
+        
+        const newDivinityPoints = god.divinityPoints + 1;
+
+        try {
+            await clientDB.collection('rooms').updateOne(
+                { 'gods.id': god.id },
+                { $set: { 'gods.$.divinityPoints': newDivinityPoints } }
+            );
+            
+            const updatedRoom = await clientDB.collection('rooms').findOne({ 'gods.id': god.id });
+            if (updatedRoom) {
+                socket.to(room.code).emit('rooms:events', updatedRoom);
+            }
+        } catch (error) {
+            console.error('Error updating divinity points:', error);
+        }
+    }
+}
+
 
 async function disablePlayerTracking(socket: Socket) {
     const room = await getRoomBySocket(socket);

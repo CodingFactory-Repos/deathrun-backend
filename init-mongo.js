@@ -19,9 +19,9 @@ db.rooms.insertOne({
 
 // Insertion de plusieurs documents dans la collection "traps"
 db.traps.insertMany([
-    {name: "crossbow_down_prefab", price: 3},
-    {name: "crossbow_side_left_prefab", price: 3},
-    {name: "crossbow_side_right_prefab", price: 3},
-    {name: "crossbow_up_prefab", price: 3},
+    {name: "crossbow_down_prefab", price: 5},
+    {name: "crossbow_side_left_prefab", price: 5},
+    {name: "crossbow_side_right_prefab", price: 5},
+    {name: "crossbow_up_prefab", price: 5},
     {name: "bear_trap_prefab", price: 1},
 ]);

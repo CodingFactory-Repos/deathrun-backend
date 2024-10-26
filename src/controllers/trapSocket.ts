@@ -93,6 +93,11 @@ async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
     const start = { x: 4, y: 0 };
     const exit = { x: 4, y: 22 };
 
+    if (trap.x === start.x && trap.y === start.y) {
+        handleError(socket, 'Placement du piège sur la position de départ');
+        return false;
+    }
+
     const isPathClear = await findPathBFS(start, exit, blockedPositions);
     
     if (!isPathClear) {
@@ -154,8 +159,10 @@ async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
         console.log("Ajout du piège à la salle");
 
         await clientDB.collection('rooms').updateOne({ 'gods.id': socket.id }, { $push: { traps: trap } });
+        const updatedRoom = await clientDB.collection('rooms').findOne({ 'gods.id': socket.id });
         const room = await getRoom(socket);
         if (room?.traps) socket.emit('traps:list', room.traps);
+        socket.to(updatedRoom?.code).emit('rooms:events', updatedRoom)
         return true;
     } catch (error) {
         handleError(socket, 'Erreur lors de l\'ajout du piège à la salle', error);
