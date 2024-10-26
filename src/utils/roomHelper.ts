@@ -57,6 +57,14 @@ export const getRoom = async (code: string): Promise<any | null> => {
   return null;
 };
 
+export async function getGodsFromRoom(socket: Socket): Promise<string[] | undefined> {
+  const room = await clientDB.collection('rooms').findOne({creator: socket.id});
+  if (room) {
+      const gods = room.gods.map((god: any) => god.id);
+      return gods;
+  }
+}
+
 export const getRoomBySocket = async (socket: Socket): Promise<any | null> => {
     const playerRoom = await clientDB.collection('rooms').findOne({ 'players.id': socket.id });
     if (playerRoom) {
