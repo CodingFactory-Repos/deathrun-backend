@@ -40,9 +40,15 @@ function isValidTrap(trap: any): trap is Trap {
  * @param trap - L'objet piège à placer
  */
 async function placeTrap(socket: Socket, trap: Trap) {
+    trap.collided = isTrapCollided(trap);
     if (!(await checkAvailability(socket, trap))) return;
     const trapData = {trap, playerId: socket.id};
     broadcastTrap(socket, trapData);
+}
+
+function isTrapCollided(trap: Trap) {
+    const trapsCollided = ['crossbow']
+    return trapsCollided.some(trapName => trap.trapType.includes(trapName));
 }
 
 /**
@@ -75,12 +81,14 @@ async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
     }
     if (traps) {
         traps.forEach(existingTrap => {
-            blockedPositions.add(`${existingTrap.x},${existingTrap.y}`);
+            if (existingTrap.collided) {
+                blockedPositions.add(`${existingTrap.x},${existingTrap.y}`);
+            }
         });
     }
 
     // Temporarily add the new trap position to check if it blocks the path
-    blockedPositions.add(`${trap.x},${trap.y}`);
+    trap.collided ? blockedPositions.add(`${trap.x},${trap.y}`) : null;
     
     const start = { x: 4, y: 0 };
     const exit = { x: 4, y: 22 };
@@ -142,14 +150,6 @@ async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
     try {
         const buyTrapSuccess = await buyTrap(socket, trap);
         if (!buyTrapSuccess) return false;
-
-        const trapsCollided = ['crossbow']
-   
-        if (trapsCollided.some(trapName => trap.trapType.includes(trapName))) {
-            trap.collided = true;
-        } else {
-            trap.collided = false;
-        }
 
         console.log("Ajout du piège à la salle");
 
