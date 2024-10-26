@@ -77,3 +77,8 @@ export const isPlayer = async (socket: Socket): Promise<boolean> => {
 
     return false;
 }
+
+export const isGod = async (room: any, socket: Socket): Promise<boolean> => {
+  const updatedRoom = await getRoom(room.code);
+  return updatedRoom.gods.some((god: any) => god.id === socket.id);
+}
