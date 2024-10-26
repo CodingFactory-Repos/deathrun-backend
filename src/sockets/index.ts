@@ -6,6 +6,7 @@ import { Server } from 'socket.io';
 import { disconnectedSocket } from "../controllers/disconnectedSocket";
 import {rockPaperScissorsSocket} from "../controllers/RockPaperScissorsSocket";
 import {chatSocket} from "../controllers/chatSocket";
+import { cameraSocket } from "../controllers/cameraSocket";
 
 export const initializeSockets = (io: Server) => {
   io.on('connection', (socket) => {
@@ -17,6 +18,7 @@ export const initializeSockets = (io: Server) => {
     rockPaperScissorsSocket(socket);
     propsSocket(socket);
     chatSocket(socket);
+    cameraSocket(socket);
 
 
     disconnectedSocket(socket);
