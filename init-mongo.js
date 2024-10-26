@@ -12,10 +12,15 @@ db.rooms.insertOne({
     props: [{x: 4, y: 5}],
     started: false,
     floor: 0,
-    bank: 0
+    bank: 10,
+    score: 0,
+    enterInRoomAt: new Date()
 });
 
 // Insertion de plusieurs documents dans la collection "traps"
 db.traps.insertMany([
-    {name: "crossbow_down_prefab", price: 3}
+    {name: "crossbow_down_prefab", price: 3},
+    {name: "crossbow_side_left_prefab", price: 3},
+    {name: "crossbow_side_right_prefab", price: 3},
+    {name: "crossbow_up_prefab", price: 3},
 ]);

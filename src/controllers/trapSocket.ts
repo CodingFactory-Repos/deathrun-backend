@@ -1,11 +1,11 @@
-import { Socket } from 'socket.io';
-import { Trap } from "../interfaces/trap";
-import { clientDB } from "../utils/databaseHelper";
+import {Socket} from 'socket.io';
+import {Trap} from "../interfaces/trap";
+import {clientDB} from "../utils/databaseHelper";
 import {checkUserInRoom, isPlayer} from "../utils/roomHelper";
 
 function handleError(socket: Socket, message: string, data?: any) {
     console.error(message, data);
-    socket.emit('traps:error', { error: message });
+    socket.emit('traps:error', {error: message});
 }
 
 /**
@@ -20,9 +20,7 @@ export const trapSocket = (socket: Socket) => {
 
     socket.on('traps:reload', async () => {
         const traps = await reloadTraps(socket);
-        traps?.forEach(trap => socket.emit('traps:place', { trap, playerId: socket.id }));
-
-        await goToNextFloor(socket);
+        traps?.forEach(trap => socket.emit('traps:place', {trap, playerId: socket.id}));
     });
 };
 
@@ -32,7 +30,7 @@ export const trapSocket = (socket: Socket) => {
  * @returns true si le piège est valide, false sinon
  */
 function isValidTrap(trap: any): trap is Trap {
-    const { x, y, trapType } = trap;
+    const {x, y, trapType} = trap;
     return [x, y].every(coord => typeof coord === 'number') && typeof trapType === 'string';
 }
 
@@ -43,7 +41,7 @@ function isValidTrap(trap: any): trap is Trap {
  */
 async function placeTrap(socket: Socket, trap: Trap) {
     if (!(await checkAvailability(socket, trap))) return;
-    const trapData = { trap, playerId: socket.id };
+    const trapData = {trap, playerId: socket.id};
     broadcastTrap(socket, trapData);
 }
 
@@ -54,7 +52,7 @@ async function placeTrap(socket: Socket, trap: Trap) {
  */
 function broadcastTrap(socket: Socket, trapData: any) {
     socket.broadcast.emit('traps:place', trapData);
-    socket.emit('traps:success', { message: 'Piège placé avec succès' });
+    socket.emit('traps:success', {message: 'Piège placé avec succès'});
     console.log("Piège émis à tous les clients:", trapData);
 }
 
@@ -68,9 +66,9 @@ async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
     const room = await getRoom(socket);
     if (!room || !trap) return false;
 
-    const { props, traps } = room;
-    return ![props, traps].some(items => isPositionOccupied(items, trap.x, trap.y, socket)) 
-           && await addTrapToRoom(socket, trap);
+    const {props, traps} = room;
+    return ![props, traps].some(items => isPositionOccupied(items, trap.x, trap.y, socket))
+        && await addTrapToRoom(socket, trap);
 }
 
 /**
@@ -85,7 +83,7 @@ async function getRoom(socket: Socket, isGodCheck: boolean = true) {
 
     if (!isPlayer(socket) && isGodCheck) return handleError(socket, 'Vous n\'êtes pas un dieu');
 
-    const findQuery = await isPlayer(socket) ? { 'players.id': socket.id } : { 'gods.id': socket.id };
+    const findQuery = await isPlayer(socket) ? {'players.id': socket.id} : {'gods.id': socket.id};
 
     const room = await clientDB.collection('rooms').findOne(findQuery);
     if (!room) return handleError(socket, 'Salle non trouvée');
@@ -119,9 +117,7 @@ async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
         const buyTrapSuccess = await buyTrap(socket, trap);
         if (!buyTrapSuccess) return false;
 
-        console.log("Ajout du piège à la salle");
-
-        await clientDB.collection('rooms').updateOne({ 'gods.id': socket.id }, { $push: { traps: trap } });
+        await clientDB.collection('rooms').updateOne({'gods.id': socket.id}, {$push: {traps: trap}});
         const room = await getRoom(socket);
         if (room?.traps) socket.emit('traps:list', room.traps);
         return true;
@@ -136,56 +132,44 @@ async function reloadTraps(socket: Socket) {
     return room?.traps || [];
 }
 
-async function goToNextFloor(socket: Socket) {
-    console.log("Hello")
-    const room = await getRoom(socket, false);
-    if (!room) return;
-
-    if (!isPlayer(socket)) return handleError(socket, 'Vous n\'êtes pas un joueur');
-
-    const { floor, bank } = room;
-
-    // Les gods on une banque en commun. A chaque nouveau étage, on ajoute 2 pieces à la banque.
-    const newBank = bank + 2;
-    const newFloor = floor + 1;
-
-    await clientDB.collection('rooms').updateOne(
-        { 'players.id': socket.id },
-        { $set: { floor: newFloor, bank: newBank } }
-    ).then(() => {
-        return clientDB.collection('rooms').findOne({ 'players.id': socket.id });
-    }).then((newRoom) => {
-        socket.to(room.code).emit('rooms:events', newRoom);
-    });
-}
-
 async function buyTrap(socket: Socket, trap: Trap) {
     const room = await getRoom(socket);
     if (!room) return false;
 
-    const { bank } = room;
+    const {bank, gods} = room;
     const trapPrice = await getTrapPrice(trap.trapType);
 
-    if (trapPrice > bank) {
+    // Get the god's spending limit
+    const god = gods.find((god: { id: string; }) => god.id === socket.id);
+    if (!god) return handleError(socket, 'Dieu non trouvé');
+
+    if (trapPrice > bank || trapPrice > god.spendingLimit) {
         handleError(socket, 'Fonds insuffisants pour acheter ce piège');
         return false;
     }
 
     const newBank = bank - trapPrice;
+    const newSpendingLimit = god.spendingLimit - trapPrice;
 
     await clientDB.collection('rooms').updateOne(
-        { 'gods.id': socket.id },
-        { $set: { bank: newBank } }
+        {'gods.id': socket.id},
+        {
+            $set: {
+                bank: newBank,
+                'gods.$.spendingLimit': newSpendingLimit
+            }
+        }
     ).then(() => {
-        return clientDB.collection('rooms').findOne({ 'gods.id': socket.id });
-    }).then((newRoom) => {
-        socket.to(room.code).emit('rooms:events', newRoom);
-        console.log("Piège acheté avec succès");
+        return clientDB.collection('rooms').findOne({'gods.id': socket.id});
+    }).then((updatedRoom) => {
+        // Broadcast the updated room to all clients
+        socket.to(room.code).emit('rooms:events', updatedRoom);
+        socket.emit('rooms:events', updatedRoom);
     });
 
     return true;
 }
 
 async function getTrapPrice(trapType: string): Promise<number> {
-    return (await clientDB.collection('traps').findOne({name: trapType}))?.price || 0;
+    return (await clientDB.collection('traps').findOne({name: trapType}))?.price || 99999;
 }

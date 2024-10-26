@@ -1,9 +1,10 @@
 import {Socket} from 'socket.io';
 import {clientDB} from "../utils/databaseHelper";
-import {startGame} from "./gameSocket";
+import {endGame, startGame} from "./gameSocket";
 import {MessageBuilder, Webhook} from "discord-webhook-node";
 import os from "os";
 import {tunnelURL} from "../index";
+import {getRoom, getRoomBySocket, isPlayer} from "../utils/roomHelper";
 
 interface PropsCoordinates {
     x: number,
@@ -28,6 +29,19 @@ export const roomSocket = (socket: Socket) => {
     socket.on('rooms:start', () => {
         startGame(socket);
     });
+
+    socket.on('rooms:end', () => {
+        endGame(socket);
+    });
+
+    socket.on('rooms:corridor', () => {
+        goToNextFloor(socket);
+        disablePlayerTracking(socket);
+    });
+
+    socket.on('traps:reload', () => {
+        enablePlayerTracking(socket);
+    });
 };
 
 function createRoom(socket: Socket) {
@@ -40,7 +54,9 @@ function createRoom(socket: Socket) {
         gods: [],
         started: false,
         floor: 0,
-        bank: 0,
+        bank: 10,
+        score: 0,
+        enterInRoomAt: new Date()
     }).then(() => {
         return clientDB.collection('rooms').findOne({code: roomCode});
     }).then((result) => {
@@ -82,16 +98,27 @@ function joinRoom(socket: Socket, data: joinRoomData) {
             }
         }
 
-        const roleData = data.joinAs === 'player'
+        const updateData = data.joinAs === 'player'
             ? {$push: {players: {id: socket.id}}}
-            : {$push: {gods: {id: socket.id, god: data.godId}}};
+            : {$push: {gods: {id: socket.id, god: data.godId, spendingLimit: 0}}};
 
-        await clientDB.collection('rooms').updateOne({code: data.code}, roleData);
+        await clientDB.collection('rooms').updateOne({code: data.code}, updateData);
+
+        // Recalculate spending limits for all gods
+        if (data.joinAs === 'god') {
+            const updatedRoom = await clientDB.collection('rooms').findOne({code: data.code});
+            const newSpendingLimit = Math.floor(updatedRoom.bank / updatedRoom.gods.length);
+            await clientDB.collection('rooms').updateMany(
+                {code: data.code},
+                {$set: {'gods.$[].spendingLimit': newSpendingLimit}}
+            );
+        }
 
         const updatedRoom = await clientDB.collection('rooms').findOne({code: data.code});
         if (updatedRoom && updatedRoom.creator) {
-            socket.to(data.code).emit('rooms:events', updatedRoom);
             socket.join(data.code);
+
+            socket.to(data.code).emit('rooms:events', updatedRoom);
             socket.emit('rooms:join', updatedRoom);
             socket.to(updatedRoom.creator).emit('trapper:join', {player: socket.id});
 
@@ -124,13 +151,65 @@ export async function disconnectRoom(socket: Socket) {
             await clientDB.collection('rooms').updateMany(
                 {_id: godRoom._id},
                 {$pull: {gods: {id: socket.id}}} // On supprime l'objet entier où l'id correspond
-            ).then(() => {
-                return clientDB.collection('rooms').findOne({_id: godRoom._id});
-            }).then((updatedRoom) => {
-                socket.to(godRoom.code).emit('rooms:events', updatedRoom);
+            ).then(async () => {
+                const updatedRoom = await clientDB.collection('rooms').findOne({_id: godRoom._id});
+                if (updatedRoom) {
+                    const newSpendingLimit = Math.floor(updatedRoom.bank / updatedRoom.gods.length);
+                    await clientDB.collection('rooms').updateMany(
+                        {_id: godRoom._id},
+                        {$set: {'gods.$[].spendingLimit': newSpendingLimit}}
+                    );
+                    socket.to(godRoom.code).emit('rooms:events', updatedRoom);
+                }
             });
         }
     } catch (error) {
         console.error('Error disconnecting room:', error);
     }
+}
+
+async function goToNextFloor(socket: Socket) {
+    const room = await getRoomBySocket(socket);
+    if (!room) return;
+
+    console.log(socket.id + ' went to next floor in room ' + room.code);
+
+    if (!(await isPlayer(socket))) return socket.emit('error', 'You are not a player');
+
+    const {floor, bank} = room;
+
+    // Les gods on une banque en commun. A chaque nouveau étage, on ajoute 2 pieces à la banque.
+    const newFloor = floor + 1;
+    const newBank = bank + newFloor;
+
+    await clientDB.collection('rooms').updateOne(
+        {'players.id': socket.id},
+        {$set: {floor: newFloor, bank: newBank}}
+    ).then(() => {
+        return clientDB.collection('rooms').findOne({'players.id': socket.id});
+    }).then(async () => {
+        const updatedRoom = await clientDB.collection('rooms').findOne({'players.id': socket.id});
+        if (updatedRoom) {
+            const equalSpendingLimit = Math.floor(updatedRoom.bank / updatedRoom.gods.length);
+            await clientDB.collection('rooms').updateMany(
+                {'gods.id': {$in: updatedRoom.gods.map((god: any) => god.id)}},
+                {$set: {'gods.$[].spendingLimit': equalSpendingLimit}}
+            );
+            socket.to(room.code).emit('rooms:events', updatedRoom);
+        }
+    });
+}
+
+async function disablePlayerTracking(socket: Socket) {
+    const room = await getRoomBySocket(socket);
+    if (!room) return;
+
+    socket.to(room.code).emit('disable:tracking');
+}
+
+async function enablePlayerTracking(socket: Socket) {
+    const room = await getRoomBySocket(socket);
+    if (!room) return;
+
+    socket.to(room.code).emit('enable:tracking');
 }
