@@ -1,5 +1,7 @@
 import { Socket } from 'socket.io';
 import { checkUserInRoom, getPlayer } from '../utils/roomHelper';
+import { clientDB } from '../utils/databaseHelper';
+import { getUser } from '../utils/userHelper';
 
 interface WaitingUser {
     room: string;
@@ -46,6 +48,10 @@ export const rockPaperScissorsSocket = (socket: Socket) => {
 
     const result = getResult(waitingUser, { room, user: socket.id, move: move.move, socket });
     const winnerName = getWinnerName(result.winner, users);
+    
+    const loser = result.winner === users[0].id ? users[1].id : users[0].id;
+
+    punishLoser(loser, room);
 
     const resultMessage = result.winner
       ? `${winnerName} won with ${result.move}`
@@ -100,4 +106,19 @@ const getResult = (
   const winningMove = winner === move1.socket.id ? move1.move : move2.move;
 
   return { winner, move: winningMove };
+};
+
+const punishLoser = async (loser: string, roomCode: string) => {
+  let loserUser = await getUser(loser, roomCode);
+
+  if (loserUser.god) {
+    await clientDB.collection('rooms').updateOne(
+      { code: roomCode, 'gods.id': loser },
+      { $inc: { 'gods.$.divinityPoints': -1 } }
+    );
+  } else {
+    const room = await clientDB.collection('rooms').findOne({ code: roomCode });
+    const loserSocket = room?.players.find((player: any) => player.id === loser);
+    loserSocket.emit('lose:life');
+  }
 };
