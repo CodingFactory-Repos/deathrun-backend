@@ -24,7 +24,6 @@ export const startGame = async (socket: Socket) => {
 }
 
 export const endGame = async (socket: Socket) => {
-    console.log('endGame');
     const room = await getRoomBySocket(socket);
     if (!room) return socket.emit('error', 'Room not found');
     // if (!room.started) return socket.emit('error', 'Game not started');
@@ -37,13 +36,11 @@ export const endGame = async (socket: Socket) => {
     const currentTime = new Date();
     const enterInRoomAt = room.enterInRoomAt as Date;
     const timeElapsed = (currentTime.getTime() - enterInRoomAt.getTime()) / 1000; // Temps en secondes
-    console.log('timeElapsed', timeElapsed);
     const floors = room.floor; // Accès aux floors dans room
 
     // Ajustement du score basé sur le temps et le nombre de floors
     const baseMultiplier = 1000; // Multiplieur pour atteindre 6 chiffres
     const score = Math.round(baseMultiplier * floors * (1 / Math.sqrt(timeElapsed))); // Calcul ajusté pour des scores élevés
-    console.log('score', score);
 
     // End the game and exit the room
     await clientDB.collection('rooms').updateOne({ code: room.code }, { $set: { started: false, score } });

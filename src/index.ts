@@ -23,7 +23,7 @@ initializeSockets(io);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}.`);
+    console.info(`Server running on http://localhost:${PORT}.`);
 
     checkTunnel();
 });
@@ -37,13 +37,13 @@ async function checkTunnel() {
             .catch(() => null);
 
         if (data && data === 'Hello World!') {
-            console.log(`Tunnel is working: ${tunnelURL}`);
+            console.info(`Tunnel is working: ${tunnelURL}`);
         } else {
-            console.log('Tunnel is not working. Please check your .env url.');
+            console.error('Tunnel is not working. Please check your .env url.');
             tunnelURL = null;
         }
     } else {
-        console.log('Tunnel URL not found in .env file.');
+        console.error('Tunnel URL not found in .env file.');
     }
 }
 
