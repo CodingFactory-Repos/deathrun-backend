@@ -132,14 +132,14 @@ export async function findPathBFS(
                     queue.push(neighbor);
                     visited.add(neighborKey); // Mark as visited
                 } else {
-                    console.log(`Neighbor ${neighborKey} has already been visited.`);
+                    // console.error(`Neighbor ${neighborKey} has already been visited.`);
                 }
             } else {
-                console.log(`Neighbor ${neighborKey} is blocked or out of bounds.`);
+                // console.error(`Neighbor ${neighborKey} is blocked or out of bounds.`);
             }
         }
     }
 
-    console.log("No path found between start and goal.");
+    console.error("No path found between start and goal.");
     return false;
 }
