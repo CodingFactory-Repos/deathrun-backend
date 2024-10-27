@@ -130,8 +130,6 @@ function joinRoom(socket: Socket, data: joinRoomData) {
             socket.to(data.code).emit('rooms:events', updatedRoom);
             socket.emit('rooms:join', updatedRoom);
             socket.to(updatedRoom.creator).emit('trapper:join', {player: socket.id});
-
-            console.log(socket.id + ' joined room ' + data.code);
         }
     });
 }
@@ -178,8 +176,6 @@ export async function disconnectRoom(socket: Socket) {
 async function goToNextFloor(socket: Socket) {
     const room = await getRoomBySocket(socket);
     if (!room) return;
-
-    console.log(socket.id + ' went to next floor in room ' + room.code);
 
     if (!(await isPlayer(socket))) return socket.emit('error', 'You are not a player');
 
@@ -256,7 +252,6 @@ async function enablePlayerTracking(socket: Socket) {
 function hasAlreadyRoom(socket: Socket): boolean {
     return clientDB.collection('rooms').findOne({creator: socket.id}).then((room) => {
         if (room) {
-            console.log(socket.id + ' already has a room');
             return true;
         }
         return false

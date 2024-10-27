@@ -22,11 +22,9 @@ export const getPlayer = async (code: string, role: string, socket: Socket | nul
   }
 
   const socketToCheck = socket.id ? socket.id : socket;
-  console.log(`Socket: ${socketToCheck}, Code: ${code}, Role: ${role}`);
 
   try {
     if (role === 'god') {
-      console.log("User is a god");
       const room = await clientDB.collection('rooms').findOne({ code, 'gods.id': socketToCheck });
 
       if (room && room.gods) {
@@ -109,18 +107,12 @@ export async function findPathBFS(
         { x: 0, y: -1 }  // Up
     ];
 
-    console.log("Blocked positions:", Array.from(blockedPositions));
-    console.log(`Start position: ${start.x},${start.y}, Goal position: ${goal.x},${goal.y}`);
-
     while (queue.length > 0) {
         const current = queue.shift()!;
         const currentKey = `${current.x},${current.y}`;
 
-        // console.log(`Current position: ${currentKey}`); // Debugging
-
         // Check if we've reached the goal
         if (currentKey === `${goal.x},${goal.y}`) {
-            console.log("Path found to goal!");
             return true;
         }
 
@@ -136,11 +128,9 @@ export async function findPathBFS(
                 !blockedPositions.has(neighborKey) // Check for blockage
             ) {
                 // Only mark as visited if not already visited
-                console.log(`Checking neighbor: ${neighborKey}`); // Debugging
                 if (!visited.has(neighborKey)) {
                     queue.push(neighbor);
                     visited.add(neighborKey); // Mark as visited
-                    console.log(`Adding neighbor: ${neighborKey}`); // Debugging
                 } else {
                     console.log(`Neighbor ${neighborKey} has already been visited.`);
                 }
@@ -151,5 +141,5 @@ export async function findPathBFS(
     }
 
     console.log("No path found between start and goal.");
-    return false; // No path found if we exit the loop without reaching the goal
+    return false;
 }

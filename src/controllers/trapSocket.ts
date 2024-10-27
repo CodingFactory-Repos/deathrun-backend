@@ -59,7 +59,6 @@ function isTrapCollided(trap: Trap) {
 function broadcastTrap(socket: Socket, trapData: any) {
     socket.broadcast.emit('traps:place', trapData);
     socket.emit('traps:success', {message: 'Piège placé avec succès'});
-    console.log("Piège émis à tous les clients:", trapData);
 }
 
 /**
@@ -155,8 +154,6 @@ async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
     try {
         const buyTrapSuccess = await buyTrap(socket, trap);
         if (!buyTrapSuccess) return false;
-
-        console.log("Ajout du piège à la salle");
 
         await clientDB.collection('rooms').updateOne({ 'gods.id': socket.id }, { $push: { traps: trap } });
         const updatedRoom = await clientDB.collection('rooms').findOne({ 'gods.id': socket.id });

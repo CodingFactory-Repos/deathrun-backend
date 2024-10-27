@@ -10,7 +10,7 @@ import { cameraSocket } from "../controllers/cameraSocket";
 
 export const initializeSockets = (io: Server) => {
   io.on('connection', (socket) => {
-    console.log('a user connected', socket.id);
+    console.info('a user connected', socket.id);
 
     roomSocket(socket);
     playerSocket(socket);
