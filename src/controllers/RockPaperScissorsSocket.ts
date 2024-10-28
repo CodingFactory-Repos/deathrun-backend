@@ -56,9 +56,7 @@ export const rockPaperScissorsSocket = (socket: Socket) => {
     const result = getResult(waitingUser, { room, user: socket.id, move: move.move, socket });
     const winnerName = getWinnerName(result.winner, users);
     
-    const loser = result.winner === users[0].id ? users[1].id : users[0].id;
-
-    const loserSocket = loser === waitingUser.user.id ? waitingUser.socket : socket
+    const loserSocket = result.winner === waitingUser.socket.id ? socket : waitingUser.socket;
 
     await punishLoser(loserSocket, room);
 
