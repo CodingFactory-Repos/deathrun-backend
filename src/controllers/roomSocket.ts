@@ -71,6 +71,7 @@ async function createRoom(socket: Socket) {
     }).then((result) => {
         socket.join(roomCode);
         socket.emit('rooms:code', result);
+        socket.emit('rooms:create', result);
 
         const hook = new Webhook(process.env.WEBHOOK_URL || '');
         const embed = new MessageBuilder()
@@ -141,7 +142,7 @@ export async function disconnectRoom(socket: Socket) {
         if (playerRoom) {
             await clientDB.collection('rooms').updateMany(
                 {_id: playerRoom._id},
-                {$pull: {players: {id: socket.id}}}
+                {$pull: {players: {id: socket.id}} as any }
             ).then(() => {
                 return clientDB.collection('rooms').findOne({_id: playerRoom._id});
             }).then((updatedRoom) => {
@@ -154,7 +155,7 @@ export async function disconnectRoom(socket: Socket) {
         if (godRoom) {
             await clientDB.collection('rooms').updateMany(
                 {_id: godRoom._id},
-                {$pull: {gods: {id: socket.id}}} // On supprime l'objet entier où l'id correspond
+                {$pull: {gods: {id: socket.id}} as any } // On supprime l'objet entier où l'id correspond
             ).then(async () => {
                 const updatedRoom = await clientDB.collection('rooms').findOne({_id: godRoom._id});
                 if (updatedRoom) {
