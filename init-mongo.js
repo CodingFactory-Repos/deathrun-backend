@@ -5,7 +5,7 @@ db.createCollection('traps'); // Création de la collection "traps"
 
 // Insertion d'un document dans la collection "rooms"
 db.rooms.insertOne({
-    code: "test",
+    code: "1234",
     creator: "testPlayer",
     players: [{id: "testPlayer"}],
     gods: [],
