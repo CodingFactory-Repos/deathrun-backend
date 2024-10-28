@@ -20,7 +20,7 @@ export const trapSocket = (socket: Socket) => {
 
     socket.on('traps:reload', async () => {
         const traps = await reloadTraps(socket);
-        traps?.forEach((trap: any) => socket.emit('traps:place', {trap, playerId: socket.id}));
+        socket.emit('traps:place', {traps, playerId: socket.id});
     });
 };
 
@@ -73,6 +73,26 @@ async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
 
     const { props, traps } = room;
 
+    const start = { x: 4, y: 0 };
+    const exit = { x: 4, y: 22 };
+
+    const neighbors = [];
+    // First of all if the trap is collided, we must not be able to place it on the neighbours of the exit and the start
+        
+    if (trap.collided) {
+        for (let i = -1; i <= 1; i++) {
+            for (let j = -1; j <= 1; j++) {
+                neighbors.push({x: exit.x + i, y: exit.y + j});
+                neighbors.push({x: start.x + i, y: start.y + j});
+            }
+        }
+    }
+
+    if (neighbors.some(neighbor => neighbor.x === trap.x && neighbor.y === trap.y)) {
+        handleError(socket, 'Impossible de placer un piège sur cet emplacement');
+        return false;
+    }
+
     // Collect all occupied positions
     const blockedPositions = new Set<string>();
     if (props) {
@@ -89,13 +109,6 @@ async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
     // Temporarily add the new trap position to check if it blocks the path
     trap.collided ? blockedPositions.add(`${trap.x},${trap.y}`) : null;
     
-    const start = { x: 4, y: 0 };
-    const exit = { x: 4, y: 22 };
-
-    if (trap.x === start.x && trap.y === start.y) {
-        handleError(socket, 'Placement du piège sur la position de départ');
-        return false;
-    }
 
     const isPathClear = await findPathBFS(start, exit, blockedPositions);
     
