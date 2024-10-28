@@ -155,7 +155,7 @@ async function addTrapToRoom(socket: Socket, trap: Trap): Promise<boolean> {
         const buyTrapSuccess = await buyTrap(socket, trap);
         if (!buyTrapSuccess) return false;
 
-        await clientDB.collection('rooms').updateOne({ 'gods.id': socket.id }, { $push: { traps: trap } });
+        await clientDB.collection('rooms').updateOne({ 'gods.id': socket.id }, { $push: { traps: trap } as any });
         const updatedRoom = await clientDB.collection('rooms').findOne({ 'gods.id': socket.id });
         const room = await getRoom(socket);
         if (room?.traps) socket.emit('traps:list', room.traps);
