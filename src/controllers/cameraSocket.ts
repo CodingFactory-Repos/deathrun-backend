@@ -13,10 +13,6 @@ export const cameraSocket = (socket: Socket) => {
 
     if (roomCreator !== socket.id) return socket.emit('error', 'You are not the room creator');
 
-    const gods = room.gods.map((god: any) => god.id);
-
-    gods.forEach((god: string) => {
-        socket.to(god).emit('camera:sending', frame);
-    });
+    socket.to(room.code).emit('camera:sending', frame);
   });
 };
