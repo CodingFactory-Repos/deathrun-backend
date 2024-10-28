@@ -71,6 +71,7 @@ async function createRoom(socket: Socket) {
     }).then((result) => {
         socket.join(roomCode);
         socket.emit('rooms:code', result);
+        socket.emit('rooms:create', result);
 
         const hook = new Webhook(process.env.WEBHOOK_URL || '');
         const embed = new MessageBuilder()
@@ -107,15 +108,14 @@ function joinRoom(socket: Socket, data: joinRoomData) {
             }
         }
 
-        const updateData = data.joinAs === 'player'
+        const updateData: any = data.joinAs === 'player'
             ? {$push: {players: {id: socket.id}}}
             : {$push: {gods: {id: socket.id, god: data.godId, spendingLimit: 0, divinityPoints: 0}}};
 
         await clientDB.collection('rooms').updateOne({code: data.code}, updateData);
 
-        // Recalculate spending limits for all gods
         if (data.joinAs === 'god') {
-            const updatedRoom = await clientDB.collection('rooms').findOne({code: data.code});
+            const updatedRoom: any = await clientDB.collection('rooms').findOne({code: data.code});
             const newSpendingLimit = Math.floor(updatedRoom.bank / updatedRoom.gods.length);
             await clientDB.collection('rooms').updateMany(
                 {code: data.code},
@@ -142,7 +142,7 @@ export async function disconnectRoom(socket: Socket) {
         if (playerRoom) {
             await clientDB.collection('rooms').updateMany(
                 {_id: playerRoom._id},
-                {$pull: {players: {id: socket.id}}}
+                {$pull: {players: {id: socket.id}} as any }
             ).then(() => {
                 return clientDB.collection('rooms').findOne({_id: playerRoom._id});
             }).then((updatedRoom) => {
@@ -155,7 +155,7 @@ export async function disconnectRoom(socket: Socket) {
         if (godRoom) {
             await clientDB.collection('rooms').updateMany(
                 {_id: godRoom._id},
-                {$pull: {gods: {id: socket.id}}} // On supprime l'objet entier où l'id correspond
+                {$pull: {gods: {id: socket.id}} as any } // On supprime l'objet entier où l'id correspond
             ).then(async () => {
                 const updatedRoom = await clientDB.collection('rooms').findOne({_id: godRoom._id});
                 if (updatedRoom) {
@@ -249,7 +249,7 @@ async function enablePlayerTracking(socket: Socket) {
     socket.to(room.code).emit('enable:tracking');
 }
 
-function hasAlreadyRoom(socket: Socket): boolean {
+function hasAlreadyRoom(socket: Socket): Promise<boolean> {
     return clientDB.collection('rooms').findOne({creator: socket.id}).then((room) => {
         if (room) {
             return true;
