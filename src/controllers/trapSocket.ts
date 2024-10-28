@@ -20,7 +20,7 @@ export const trapSocket = (socket: Socket) => {
 
     socket.on('traps:reload', async () => {
         const traps = await reloadTraps(socket);
-        traps?.forEach((trap: any) => socket.emit('traps:place', {trap, playerId: socket.id}));
+        socket.emit('traps:place', {traps, playerId: socket.id});
     });
 };
 
