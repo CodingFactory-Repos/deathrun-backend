@@ -44,8 +44,13 @@ export const roomSocket = (socket: Socket) => {
         enablePlayerTracking(socket);
     });
 
-    socket.on('rooms:disconnect', () => {
+    socket.on('rooms:delete', () => {
+        console.log('delete room');
         deleteRoom(socket);
+    });
+
+    socket.on('rooms:death', () => {
+        deadUser(socket);
     });
 };
 
@@ -263,8 +268,16 @@ async function deleteRoom(socket: Socket) {
     clientDB.collection('rooms').deleteOne({creator: socket.id}).then(() => {
         // Emit to every god in the room the socket
         gods?.forEach((god) => {
+            console.log('deleted room socket to ', god);
             socket.to(god).emit('rooms:delete');
         });
         disconnectUser(socket);
+    });
+}
+
+async function deadUser(socket: Socket) {
+    const gods = await getGodsFromRoom(socket);
+    gods?.forEach((god) => {
+        socket.to(god).emit('user:death');
     });
 }
