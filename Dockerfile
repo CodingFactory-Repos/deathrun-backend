@@ -5,7 +5,8 @@ FROM ubuntu:20.04
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
-    gnupg
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
 
 # Étape 2 : Installer MongoDB
 RUN wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add - && \
@@ -38,7 +39,5 @@ COPY init-mongo.js /init-mongo.js
 # Exposer les ports pour MongoDB et votre application Node.js
 EXPOSE 27017 3000
 
-# Commande pour démarrer MongoDB et le backend Node.js
-CMD mongod --fork --logpath /var/log/mongodb.log --bind_ip_all && \
-    mongo < /init-mongo.js && \
-    npm run prod
+# Démarrer MongoDB et le backend Node.js
+CMD ["bash", "-c", "mongod --logpath /var/log/mongodb.log --bind_ip_all & sleep 5 && mongo /init-mongo.js && npm run prod"]
