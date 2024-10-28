@@ -15,7 +15,7 @@ export const cameraSocket = (socket: Socket) => {
 
     const gods = room.gods.map((god: any) => god.id);
 
-    gods.forEach(god => {
+    gods.forEach((god: string) => {
         socket.to(god).emit('camera:sending', frame);
     });
   });

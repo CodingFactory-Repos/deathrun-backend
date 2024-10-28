@@ -107,15 +107,14 @@ function joinRoom(socket: Socket, data: joinRoomData) {
             }
         }
 
-        const updateData = data.joinAs === 'player'
+        const updateData: any = data.joinAs === 'player'
             ? {$push: {players: {id: socket.id}}}
             : {$push: {gods: {id: socket.id, god: data.godId, spendingLimit: 0, divinityPoints: 0}}};
 
         await clientDB.collection('rooms').updateOne({code: data.code}, updateData);
 
-        // Recalculate spending limits for all gods
         if (data.joinAs === 'god') {
-            const updatedRoom = await clientDB.collection('rooms').findOne({code: data.code});
+            const updatedRoom: any = await clientDB.collection('rooms').findOne({code: data.code});
             const newSpendingLimit = Math.floor(updatedRoom.bank / updatedRoom.gods.length);
             await clientDB.collection('rooms').updateMany(
                 {code: data.code},
@@ -249,7 +248,7 @@ async function enablePlayerTracking(socket: Socket) {
     socket.to(room.code).emit('enable:tracking');
 }
 
-function hasAlreadyRoom(socket: Socket): boolean {
+function hasAlreadyRoom(socket: Socket): Promise<boolean> {
     return clientDB.collection('rooms').findOne({creator: socket.id}).then((room) => {
         if (room) {
             return true;

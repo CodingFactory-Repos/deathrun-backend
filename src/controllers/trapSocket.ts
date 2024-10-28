@@ -20,7 +20,7 @@ export const trapSocket = (socket: Socket) => {
 
     socket.on('traps:reload', async () => {
         const traps = await reloadTraps(socket);
-        traps?.forEach(trap => socket.emit('traps:place', {trap, playerId: socket.id}));
+        traps?.forEach((trap: any) => socket.emit('traps:place', {trap, playerId: socket.id}));
     });
 };
 
@@ -76,10 +76,10 @@ async function checkAvailability(socket: Socket, trap: Trap): Promise<boolean> {
     // Collect all occupied positions
     const blockedPositions = new Set<string>();
     if (props) {
-        props.forEach(prop => blockedPositions.add(`${prop.x},${prop.y}`));
+        props.forEach((prop: any) => blockedPositions.add(`${prop.x},${prop.y}`));
     }
     if (traps) {
-        traps.forEach(existingTrap => {
+        traps.forEach((existingTrap : any) => {
             if (existingTrap.collided) {
                 blockedPositions.add(`${existingTrap.x},${existingTrap.y}`);
             }

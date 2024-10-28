@@ -111,7 +111,7 @@ const getResult = (
     return { winner: null, move: move1.move };
   }
 
-  const winner = winningMoves[move1.move] === move2.move ? move1.socket.id : move2.socket.id;
+  const winner = winningMoves[move1.move as keyof typeof winningMoves] === move2.move ? move1.socket.id : move2.socket.id;
   const winningMove = winner === move1.socket.id ? move1.move : move2.move;
 
   return { winner, move: winningMove };
