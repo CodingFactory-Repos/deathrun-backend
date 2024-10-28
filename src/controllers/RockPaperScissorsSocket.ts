@@ -1,5 +1,7 @@
 import { Socket } from 'socket.io';
-import { checkUserInRoom, getPlayer } from '../utils/roomHelper';
+import { checkUserInRoom, getGodsFromRoom, getPlayer } from '../utils/roomHelper';
+import { clientDB } from '../utils/databaseHelper';
+import { getUser } from '../utils/userHelper';
 
 interface WaitingUser {
     room: string;
@@ -22,6 +24,13 @@ const moves = ['rock', 'paper', 'scissors'];
 const waitingList: WaitingUser[] = [];
 
 export const rockPaperScissorsSocket = (socket: Socket) => {
+  socket.on('rps:start', async () => {
+    const user = await checkUserInRoom(socket);
+    if (!user) return socket.emit('error', 'You are not in a room');
+    if (user.role === 'god') return socket.emit('error', 'Gods cannot start Rock Paper Scissors');
+    startRPS(socket);
+  });
+
   socket.on('rps:select', async (move) => {
     const user = await checkUserInRoom(socket);
     if (!user) return socket.emit('error', 'You are not in a room');
@@ -46,6 +55,12 @@ export const rockPaperScissorsSocket = (socket: Socket) => {
 
     const result = getResult(waitingUser, { room, user: socket.id, move: move.move, socket });
     const winnerName = getWinnerName(result.winner, users);
+    
+    const loser = result.winner === users[0].id ? users[1].id : users[0].id;
+
+    const loserSocket = loser === waitingUser.user.id ? waitingUser.socket : socket
+
+    await punishLoser(loserSocket, room);
 
     const resultMessage = result.winner
       ? `${winnerName} won with ${result.move}`
@@ -100,4 +115,28 @@ const getResult = (
   const winningMove = winner === move1.socket.id ? move1.move : move2.move;
 
   return { winner, move: winningMove };
+};
+
+const punishLoser = async (loser: Socket, roomCode: string) => {
+  let loserUser = await getUser(loser.id, roomCode);
+
+  if (loserUser.god) {
+    await clientDB.collection('rooms').updateOne(
+      { code: roomCode, 'gods.id': loserUser.id },
+      { $inc: { 'gods.$.divinityPoints': -1 } }
+    );
+  } else {
+    loser.emit('rps:lose');
+  }
+};
+
+const startRPS = async (socket: Socket) => {
+  const gods = await getGodsFromRoom(socket);
+  if (!gods) return socket.emit('error', 'No gods found in the room');
+
+  const randomGod = gods[Math.floor(Math.random() * gods.length)];
+
+  const godSocket = socket.to(randomGod);
+
+  godSocket.emit('rps:start');
 };
