@@ -31,7 +31,7 @@ export const roomSocket = (socket: Socket) => {
         startGame(socket);
     });
 
-    socket.on('rooms:end', () => {
+    socket.on('rooms:death', () => {
         endGame(socket);
     });
 
